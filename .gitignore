@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+staticfiles/
+media/
+
+# Node
+node_modules/
+dist/
+tsconfig.tsbuildinfo
+*.local
+
+# Env
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
