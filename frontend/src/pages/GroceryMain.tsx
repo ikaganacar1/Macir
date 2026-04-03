@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-
+import { IconAlertTriangle, IconBolt, IconHistory } from '@tabler/icons-react';
 import { api, endpoints } from '../api';
 
 interface DashboardStats {
@@ -102,7 +102,29 @@ export default function GroceryMain() {
           </Box>
         </Group>
       </Paper>
-
+      {/* Quick Actions based on context */}
+      <Paper withBorder p='sm' radius='md'>
+        <Text size='xs' fw={700} c='dimmed' mb='sm' tt='uppercase'>Quick Actions</Text>
+        <SimpleGrid cols={2} spacing='sm'>
+          <Button
+            variant='light'
+            color='orange'
+            leftSection={<IconAlertTriangle size={18} />}
+            onClick={() => navigate('/stock/new')}
+            disabled={!stats?.low_stock?.length}
+          >
+            Restock {stats?.low_stock?.length ? `(${stats.low_stock.length})` : ''}
+          </Button>
+          <Button
+            variant='light'
+            color='blue'
+            leftSection={<IconHistory size={18} />}
+            onClick={() => navigate('/sales/new')}
+          >
+            Repeat Last Sale
+          </Button>
+        </SimpleGrid>
+      </Paper>
       {/* Action buttons 2x2 */}
       <SimpleGrid cols={2} spacing='md'>
         {actions.map((action) => (
@@ -131,5 +153,6 @@ export default function GroceryMain() {
         {t`Detailed Dashboard`}
       </Button>
     </Stack>
+    
   );
 }
