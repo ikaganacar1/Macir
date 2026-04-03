@@ -22,6 +22,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: '/index.html', // Added to handle offline SPA routing correctly
         runtimeCaching: [
           {
             urlPattern: /^\/api\/grocery\/.*/i,

@@ -37,13 +37,15 @@ export default function App() {
         {!authed ? (
           <Login onLogin={() => setAuthed(true)} />
         ) : (
-          <Suspense fallback={null}>
+          <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Yükleniyor...</div>}>
             <Routes>
               <Route path='/' element={<GroceryMain />} />
               <Route path='/dashboard' element={<GroceryDashboard />} />
               <Route path='/products' element={<GroceryProducts />} />
               <Route path='/stock/new' element={<GroceryAddStock />} />
               <Route path='/sales/new' element={<GroceryRecordSales />} />
+              {/* Catch-all route to prevent blank pages on invalid URLs */}
+              <Route path='*' element={<div style={{ padding: '2rem', textAlign: 'center' }}>Sayfa bulunamadı.</div>} />
             </Routes>
           </Suspense>
         )}

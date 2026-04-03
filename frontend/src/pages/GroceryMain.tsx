@@ -42,30 +42,31 @@ export default function GroceryMain() {
         .then((r) => r.data),
   });
 
+  // frontend/src/pages/GroceryMain.tsx
   const actions = [
     {
       label: t`Record Sales`,
       icon: <IconShoppingCart size={28} />,
       color: 'orange',
-      path: '/grocery/sales/new',
+      path: '/sales/new',  // Changed from '/grocery/sales/new'
     },
     {
       label: t`Add Stock`,
       icon: <IconPackage size={28} />,
       color: 'blue',
-      path: '/grocery/stock/new',
+      path: '/stock/new',  // Changed from '/grocery/stock/new'
     },
     {
       label: t`Products`,
       icon: <IconClipboardList size={28} />,
       color: 'green',
-      path: '/grocery/products',
+      path: '/products',   // Changed from '/grocery/products'
     },
     {
       label: t`Reports`,
       icon: <IconChartBar size={28} />,
       color: 'grape',
-      path: '/grocery/dashboard',
+      path: '/dashboard',  // Changed from '/grocery/dashboard'
     },
   ];
 
