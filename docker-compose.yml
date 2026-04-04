@@ -2,8 +2,9 @@ services:
   backend:
     build:
       context: ./backend
+    env_file:
+      - .env
     environment:
-      SECRET_KEY: change-me-in-production
       DEBUG: "false"
       EXTRA_ALLOWED_ORIGINS: "http://100.74.141.51:81,http://100.74.141.51"
     volumes:

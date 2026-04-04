@@ -19,15 +19,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
 import { api, endpoints } from '../api';
-
-interface Product {
-  pk: number;
-  name: string;
-  unit: string;
-  stock_level: number;
-  low_stock_threshold: number;
-  category_name: string;
-}
+import type { Product } from '../types';
 
 type LineField = 'quantity' | 'purchase_price';
 
@@ -164,7 +156,7 @@ export default function GroceryAddStock() {
               const qty = line?.quantity ?? '0';
               const price = line?.purchase_price ?? '0';
               const hasQty = parseFloat(qty) > 0;
-              const isLow = product.stock_level <= product.low_stock_threshold;
+              const isLow = product.stock_level <= parseFloat(String(product.low_stock_threshold));
 
               return (
                 <Paper

@@ -16,15 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { api, endpoints } from '../api';
-
-interface DashboardData {
-  total_sales: string | number;
-  net_profit: string | number;
-  items_sold: number;
-  best_sellers: { product_id: number; name: string; revenue: string | number; quantity: string | number; unit: string }[];
-  low_stock: { product_id: number; name: string; stock_level: string | number; unit: string }[];
-  chart: { date: string; sales: string | number }[];
-}
+import type { DashboardData } from '../types';
 
 function fmt2(v: string | number | undefined): string {
   if (v == null) return '0.00';

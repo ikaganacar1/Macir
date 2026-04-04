@@ -42,6 +42,42 @@ class CategoryDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
 
+def _annotate_products(qs):
+    """Annotate a Product queryset with stock_level and latest purchase price (bulk, no N+1)."""
+    received_sq = Coalesce(
+        Subquery(
+            StockEntryItem.objects.filter(product_id=OuterRef('pk'))
+            .values('product_id')
+            .annotate(total=Sum('quantity'))
+            .values('total')[:1],
+            output_field=DecimalField(),
+        ),
+        Decimal('0'),
+        output_field=DecimalField(),
+    )
+    sold_sq = Coalesce(
+        Subquery(
+            SaleItem.objects.filter(product_id=OuterRef('pk'))
+            .values('product_id')
+            .annotate(total=Sum('quantity'))
+            .values('total')[:1],
+            output_field=DecimalField(),
+        ),
+        Decimal('0'),
+        output_field=DecimalField(),
+    )
+    latest_price_sq = Subquery(
+        StockEntryItem.objects.filter(product_id=OuterRef('pk'))
+        .order_by('-entry__date', '-id')
+        .values('purchase_price')[:1],
+        output_field=DecimalField(),
+    )
+    return qs.annotate(
+        _stock_level=ExpressionWrapper(received_sq - sold_sq, output_field=DecimalField()),
+        _most_recent_purchase_price=latest_price_sq,
+    )
+
+
 class ProductList(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
@@ -59,13 +95,15 @@ class ProductList(generics.ListCreateAPIView):
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(name__icontains=search)
-        return qs
+        return _annotate_products(qs)
 
 
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return _annotate_products(Product.objects.all())
 
 
 class StockEntryList(generics.ListCreateAPIView):
@@ -235,7 +273,6 @@ class DashboardView(APIView):
             'end': str(end),
             'total_sales': total_sales,
             'net_profit': profit,
-            'cost_of_stock': None,  # removed: was inaccurate (stock-in-range ≠ COGS)
             'items_sold': items_sold_count,
             'best_sellers': best_sellers,
             'low_stock': low_stock,

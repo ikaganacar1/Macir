@@ -25,17 +25,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
 import { api, endpoints } from '../api';
-
-interface Product {
-  pk: number;
-  name: string;
-  unit: string;
-  sell_price: string;
-  svg_icon: string | null;
-  category_name: string;
-  stock_level?: number;
-  low_stock_threshold?: number;
-}
+import type { Product } from '../types';
 
 interface SaleItem {
   product: number;
@@ -214,7 +204,7 @@ export default function GroceryRecordSales() {
         <SimpleGrid cols={3} spacing='sm'>
           {filteredProducts.map((product) => {
             const isSelected = !!selectedItems[product.pk];
-            const isLowStock = (product.stock_level ?? 999) <= (product.low_stock_threshold ?? 2);
+            const isLowStock = (product.stock_level ?? 999) <= parseFloat(String(product.low_stock_threshold ?? '2'));
             return (
               <Paper
                 key={product.pk}

@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -7,7 +9,14 @@ from django.middleware.csrf import get_token
 from django.urls import include, path
 from django.views.decorators.http import require_POST
 
+from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.throttling import AnonRateThrottle
+
 from grocery.api import grocery_api_urls
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
 
 
 def auth_status(request):
@@ -20,13 +29,13 @@ def csrf_view(request):
     return JsonResponse({'csrfToken': get_token(request)})
 
 
-@require_POST
+@api_view(['POST'])
+@throttle_classes([LoginRateThrottle])
 def api_login(request):
-    import json
-    data = json.loads(request.body)
+    data = request.data
     user = authenticate(request, username=data.get('username', ''), password=data.get('password', ''))
     if user:
-        login(request, user)
+        login(request._request, user)
         return JsonResponse({'authenticated': True, 'username': user.username})
     return JsonResponse({'error': 'Invalid credentials'}, status=401)
 

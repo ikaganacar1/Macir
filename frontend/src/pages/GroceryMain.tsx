@@ -18,18 +18,13 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
-
-interface DashboardStats {
-  total_sales: number;
-  net_profit: number;
-  low_stock: { product_id: number }[];
-}
+import type { DashboardData } from '../types';
 
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
 
-  const { data: stats } = useQuery<DashboardStats>({
+  const { data: stats } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard-today', today],
     queryFn: () =>
       api.get(endpoints.dashboard, { params: { range: 'today', date: today } }).then((r) => r.data),

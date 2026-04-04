@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, endpoints } from '../api';
+import type { Category, Product } from '../types';
 
 interface Preset {
   name: string;
@@ -123,23 +124,6 @@ const PRESET_PRODUCTS: Preset[] = [
   { name: 'Kuru Erik', emoji: '🟣', unit: 'kg', category: 'Diğer' },
 ];
 
-interface Category {
-  pk: number;
-  name: string;
-}
-
-interface Product {
-  pk: number;
-  name: string;
-  category: number | null;
-  category_name: string;
-  unit: string;
-  sell_price: string;
-  low_stock_threshold: string;
-  expiry_note: string;
-  is_active: boolean;
-}
-
 export default function GroceryProducts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -175,8 +159,8 @@ export default function GroceryProducts() {
       name: '',
       category: null as number | null,
       unit: 'kg',
-      sell_price: 0,
-      low_stock_threshold: 0,
+      sell_price: '' as string | number,
+      low_stock_threshold: 0 as string | number,
       expiry_note: '',
     },
   });
@@ -208,8 +192,8 @@ export default function GroceryProducts() {
       formData.append('name', values.name);
       if (values.category != null) formData.append('category', String(values.category));
       formData.append('unit', values.unit);
-      formData.append('sell_price', values.sell_price.toFixed(2));
-      formData.append('low_stock_threshold', values.low_stock_threshold.toFixed(2));
+      formData.append('sell_price', parseFloat(String(values.sell_price) || '0').toFixed(2));
+      formData.append('low_stock_threshold', parseFloat(String(values.low_stock_threshold) || '0').toFixed(2));
       formData.append('expiry_note', values.expiry_note);
       if (iconFile) formData.append('svg_icon', iconFile);
 
@@ -250,7 +234,7 @@ export default function GroceryProducts() {
       name: preset.name,
       category: matchedCategory?.pk ?? null,
       unit: preset.unit,
-      sell_price: undefined as unknown as number,
+      sell_price: '',
       low_stock_threshold: preset.unit === 'kg' ? 2 : 1,
       expiry_note: '',
     });
