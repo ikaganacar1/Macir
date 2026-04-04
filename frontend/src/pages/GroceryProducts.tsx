@@ -6,7 +6,9 @@ import {
   Modal,
   NumberInput,
   Paper,
+  ScrollArea,
   Select,
+  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -21,6 +23,105 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, endpoints } from '../api';
+
+interface Preset {
+  name: string;
+  emoji: string;
+  unit: 'kg' | 'piece';
+  category: 'Sebze' | 'Meyve' | 'Diğer';
+}
+
+const PRESET_PRODUCTS: Preset[] = [
+  // Sebze
+  { name: 'Domates', emoji: '🍅', unit: 'kg', category: 'Sebze' },
+  { name: 'Salatalık', emoji: '🥒', unit: 'kg', category: 'Sebze' },
+  { name: 'Kırmızı Biber', emoji: '🫑', unit: 'kg', category: 'Sebze' },
+  { name: 'Sivri Biber', emoji: '🫑', unit: 'kg', category: 'Sebze' },
+  { name: 'Dolmalık Biber', emoji: '🫑', unit: 'kg', category: 'Sebze' },
+  { name: 'Acı Biber', emoji: '🌶️', unit: 'kg', category: 'Sebze' },
+  { name: 'Patlıcan', emoji: '🍆', unit: 'kg', category: 'Sebze' },
+  { name: 'Havuç', emoji: '🥕', unit: 'kg', category: 'Sebze' },
+  { name: 'Patates', emoji: '🥔', unit: 'kg', category: 'Sebze' },
+  { name: 'Tatlı Patates', emoji: '🍠', unit: 'kg', category: 'Sebze' },
+  { name: 'Soğan', emoji: '🧅', unit: 'kg', category: 'Sebze' },
+  { name: 'Taze Soğan', emoji: '🌱', unit: 'kg', category: 'Sebze' },
+  { name: 'Sarımsak', emoji: '🧄', unit: 'kg', category: 'Sebze' },
+  { name: 'Ispanak', emoji: '🥬', unit: 'kg', category: 'Sebze' },
+  { name: 'Marul', emoji: '🥗', unit: 'kg', category: 'Sebze' },
+  { name: 'Buz Marul', emoji: '🥬', unit: 'kg', category: 'Sebze' },
+  { name: 'Roka', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Tere', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Semizotu', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Maydanoz', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Dereotu', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Nane', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Kabak', emoji: '🫛', unit: 'kg', category: 'Sebze' },
+  { name: 'Pırasa', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Kereviz', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Brokoli', emoji: '🥦', unit: 'kg', category: 'Sebze' },
+  { name: 'Karnabahar', emoji: '🥦', unit: 'kg', category: 'Sebze' },
+  { name: 'Lahana', emoji: '🥬', unit: 'kg', category: 'Sebze' },
+  { name: 'Kırmızı Lahana', emoji: '🥬', unit: 'kg', category: 'Sebze' },
+  { name: 'Fasulye', emoji: '🫘', unit: 'kg', category: 'Sebze' },
+  { name: 'Barbunya', emoji: '🫘', unit: 'kg', category: 'Sebze' },
+  { name: 'Börülce', emoji: '🫘', unit: 'kg', category: 'Sebze' },
+  { name: 'Bezelye', emoji: '🫛', unit: 'kg', category: 'Sebze' },
+  { name: 'Bamya', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Pancar', emoji: '🟣', unit: 'kg', category: 'Sebze' },
+  { name: 'Turp', emoji: '🌰', unit: 'kg', category: 'Sebze' },
+  { name: 'Enginar', emoji: '🌸', unit: 'kg', category: 'Sebze' },
+  { name: 'Kuşkonmaz', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Rezene', emoji: '🌿', unit: 'kg', category: 'Sebze' },
+  { name: 'Zencefil', emoji: '🫚', unit: 'kg', category: 'Sebze' },
+  { name: 'Asma Yaprağı', emoji: '🍃', unit: 'kg', category: 'Sebze' },
+  // Meyve
+  { name: 'Elma', emoji: '🍎', unit: 'kg', category: 'Meyve' },
+  { name: 'Armut', emoji: '🍐', unit: 'kg', category: 'Meyve' },
+  { name: 'Portakal', emoji: '🍊', unit: 'kg', category: 'Meyve' },
+  { name: 'Mandalina', emoji: '🍊', unit: 'kg', category: 'Meyve' },
+  { name: 'Greyfurt', emoji: '🍊', unit: 'kg', category: 'Meyve' },
+  { name: 'Limon', emoji: '🍋', unit: 'kg', category: 'Meyve' },
+  { name: 'Muz', emoji: '🍌', unit: 'kg', category: 'Meyve' },
+  { name: 'Üzüm', emoji: '🍇', unit: 'kg', category: 'Meyve' },
+  { name: 'Çilek', emoji: '🍓', unit: 'kg', category: 'Meyve' },
+  { name: 'Kiraz', emoji: '🍒', unit: 'kg', category: 'Meyve' },
+  { name: 'Vişne', emoji: '🍒', unit: 'kg', category: 'Meyve' },
+  { name: 'Şeftali', emoji: '🍑', unit: 'kg', category: 'Meyve' },
+  { name: 'Nektarin', emoji: '🍑', unit: 'kg', category: 'Meyve' },
+  { name: 'Kayısı', emoji: '🍑', unit: 'kg', category: 'Meyve' },
+  { name: 'Erik', emoji: '🍑', unit: 'kg', category: 'Meyve' },
+  { name: 'Kavun', emoji: '🍈', unit: 'kg', category: 'Meyve' },
+  { name: 'Karpuz', emoji: '🍉', unit: 'kg', category: 'Meyve' },
+  { name: 'Nar', emoji: '🔴', unit: 'kg', category: 'Meyve' },
+  { name: 'İncir', emoji: '🟣', unit: 'kg', category: 'Meyve' },
+  { name: 'Kivi', emoji: '🥝', unit: 'kg', category: 'Meyve' },
+  { name: 'Avokado', emoji: '🥑', unit: 'kg', category: 'Meyve' },
+  { name: 'Dut', emoji: '🫐', unit: 'kg', category: 'Meyve' },
+  { name: 'Ahududu', emoji: '🫐', unit: 'kg', category: 'Meyve' },
+  { name: 'Böğürtlen', emoji: '🫐', unit: 'kg', category: 'Meyve' },
+  { name: 'Yaban Mersini', emoji: '🫐', unit: 'kg', category: 'Meyve' },
+  { name: 'Ananas', emoji: '🍍', unit: 'kg', category: 'Meyve' },
+  { name: 'Mango', emoji: '🥭', unit: 'kg', category: 'Meyve' },
+  { name: 'Trabzon Hurması', emoji: '🟠', unit: 'kg', category: 'Meyve' },
+  { name: 'Ayva', emoji: '🟡', unit: 'kg', category: 'Meyve' },
+  { name: 'Malta Eriği', emoji: '🟡', unit: 'kg', category: 'Meyve' },
+  { name: 'Hurma', emoji: '🟤', unit: 'kg', category: 'Meyve' },
+  { name: 'Muşmula', emoji: '🟡', unit: 'kg', category: 'Meyve' },
+  // Diğer
+  { name: 'Ceviz', emoji: '🌰', unit: 'kg', category: 'Diğer' },
+  { name: 'Fındık', emoji: '🌰', unit: 'kg', category: 'Diğer' },
+  { name: 'Badem', emoji: '🌰', unit: 'kg', category: 'Diğer' },
+  { name: 'Antep Fıstığı', emoji: '🟢', unit: 'kg', category: 'Diğer' },
+  { name: 'Kestane', emoji: '🌰', unit: 'kg', category: 'Diğer' },
+  { name: 'Nohut', emoji: '🫘', unit: 'kg', category: 'Diğer' },
+  { name: 'Mercimek', emoji: '🫘', unit: 'kg', category: 'Diğer' },
+  { name: 'Ay Çekirdeği', emoji: '🌻', unit: 'kg', category: 'Diğer' },
+  { name: 'Kabak Çekirdeği', emoji: '🟢', unit: 'kg', category: 'Diğer' },
+  { name: 'Kuru İncir', emoji: '🟤', unit: 'kg', category: 'Diğer' },
+  { name: 'Kuru Kayısı', emoji: '🟠', unit: 'kg', category: 'Diğer' },
+  { name: 'Kuru Üzüm', emoji: '🟤', unit: 'kg', category: 'Diğer' },
+  { name: 'Kuru Erik', emoji: '🟣', unit: 'kg', category: 'Diğer' },
+];
 
 interface Category {
   pk: number;
@@ -43,6 +144,7 @@ export default function GroceryProducts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [opened, { open, close }] = useDisclosure(false);
+  const [pickerOpened, { open: openPicker, close: closePicker }] = useDisclosure(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [iconFile, setIconFile] = useState<File | null>(null);
@@ -62,6 +164,11 @@ export default function GroceryProducts() {
     if (!search.trim()) return products;
     return products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
   }, [products, search]);
+
+  const existingNames = useMemo(
+    () => new Set(products.map((p) => p.name.toLowerCase())),
+    [products]
+  );
 
   const form = useForm({
     initialValues: {
@@ -132,6 +239,24 @@ export default function GroceryProducts() {
     },
   });
 
+  const selectPreset = (preset: Preset) => {
+    closePicker();
+    setEditing(null);
+    setIconFile(null);
+    const matchedCategory = categories.find(
+      (c) => c.name.toLowerCase() === preset.category.toLowerCase()
+    );
+    form.setValues({
+      name: preset.name,
+      category: matchedCategory?.pk ?? null,
+      unit: preset.unit,
+      sell_price: undefined as unknown as number,
+      low_stock_threshold: preset.unit === 'kg' ? 2 : 1,
+      expiry_note: '',
+    });
+    open();
+  };
+
   return (
     <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
       {/* Sticky header */}
@@ -152,7 +277,7 @@ export default function GroceryProducts() {
             </Button>
             <Title order={4}>Ürünler</Title>
           </Group>
-          <Button leftSection={<IconPlus size={16} />} onClick={openNew} size='sm' color='green'>
+          <Button leftSection={<IconPlus size={16} />} onClick={openPicker} size='sm' color='green'>
             Ürün Ekle
           </Button>
         </Group>
@@ -190,6 +315,48 @@ export default function GroceryProducts() {
           </Paper>
         ))}
       </Stack>
+
+      {/* Preset picker modal */}
+      <Modal
+        opened={pickerOpened}
+        onClose={closePicker}
+        title='Hızlı Ürün Ekle'
+        size='lg'
+        scrollAreaComponent={ScrollArea.Autosize}
+        transitionProps={{ duration: 0 }}
+      >
+        <Stack gap='md'>
+          <SimpleGrid cols={4} spacing='xs'>
+            {PRESET_PRODUCTS.map((preset) => {
+              const isAdded = existingNames.has(preset.name.toLowerCase());
+              return (
+                <Paper
+                  key={preset.name}
+                  p='xs'
+                  style={{
+                    textAlign: 'center',
+                    cursor: isAdded ? 'default' : 'pointer',
+                    opacity: isAdded ? 0.35 : 1,
+                    border: '1px solid #e8f5e9',
+                  }}
+                  onClick={isAdded ? undefined : () => selectPreset(preset)}
+                >
+                  <Text size='xl' style={{ lineHeight: 1 }}>{preset.emoji}</Text>
+                  <Text size='xs' fw={500} lineClamp={1} mt={4}>{preset.name}</Text>
+                </Paper>
+              );
+            })}
+          </SimpleGrid>
+          <Button
+            variant='subtle'
+            color='gray'
+            size='sm'
+            onClick={() => { closePicker(); openNew(); }}
+          >
+            Manuel ekle →
+          </Button>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={opened}

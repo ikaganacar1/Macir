@@ -72,7 +72,7 @@ function renderComponent() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={qc}>
-        <MantineProvider>
+        <MantineProvider env="test">
           <Notifications />
           <GroceryProducts />
         </MantineProvider>
@@ -84,7 +84,10 @@ function renderComponent() {
 describe('GroceryProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.get).mockResolvedValue({ data: mockProducts });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('categories')) return Promise.resolve({ data: mockCategories });
+      return Promise.resolve({ data: mockProducts });
+    });
   });
 
   it('renders Ürünler header with back button', async () => {
@@ -123,14 +126,14 @@ describe('GroceryProducts', () => {
     });
   });
 
-  it('opens add product modal when Ürün Ekle is clicked', async () => {
+  it('opens picker modal when Ürün Ekle is clicked', async () => {
     renderComponent();
     await waitFor(() => {
       expect(screen.getByText('Ürünler')).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: /Ürün Ekle/i }));
     await waitFor(() => {
-      expect(screen.getByText('Yeni Ürün')).toBeInTheDocument();
+      expect(screen.getByText('Hızlı Ürün Ekle')).toBeInTheDocument();
     });
   });
 
@@ -155,5 +158,60 @@ describe('GroceryProducts', () => {
     const backBtn = screen.getAllByRole('button')[0];
     fireEvent.click(backBtn);
     expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('shows preset picker with emoji cards', async () => {
+    renderComponent();
+    await waitFor(() => expect(screen.getByText('Ürünler')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Ürün Ekle/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Hızlı Ürün Ekle')).toBeInTheDocument();
+      expect(screen.getByText('Salatalık')).toBeInTheDocument();
+    });
+  });
+
+  it('dims already-added products in the picker', async () => {
+    renderComponent();
+    await waitFor(() => expect(screen.getByText('Ürünler')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Ürün Ekle/i }));
+    await waitFor(() => expect(screen.getByText('Hızlı Ürün Ekle')).toBeInTheDocument());
+    // 'Domates' exists in mockProducts — its picker card should be dimmed
+    const pickerDomates = screen.getAllByText('Domates').find(
+      (el) => el.closest('[style*="opacity: 0.35"]') !== null
+    );
+    expect(pickerDomates).toBeDefined();
+  });
+
+  it('opens form pre-filled with preset name when preset tapped', async () => {
+    renderComponent();
+    await waitFor(() => expect(screen.getByText('Ürünler')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Ürün Ekle/i }));
+    await waitFor(() => expect(screen.getByText('Hızlı Ürün Ekle')).toBeInTheDocument());
+    // 'Salatalık' is not in mockProducts so it is not dimmed
+    fireEvent.click(screen.getByText('Salatalık'));
+    await waitFor(() => {
+      expect(screen.getByText('Yeni Ürün')).toBeInTheDocument();
+    });
+    // Find the name input by its pre-filled value
+    const nameInput = screen.getAllByRole('textbox').find(
+      (el) => (el as HTMLInputElement).value === 'Salatalık'
+    );
+    expect(nameInput).toBeDefined();
+  });
+
+  it('opens blank form when Manuel ekle is clicked', async () => {
+    renderComponent();
+    await waitFor(() => expect(screen.getByText('Ürünler')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Ürün Ekle/i }));
+    await waitFor(() => expect(screen.getByText('Hızlı Ürün Ekle')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Manuel ekle →'));
+    await waitFor(() => {
+      expect(screen.getByText('Yeni Ürün')).toBeInTheDocument();
+    });
+    // Name input should be blank
+    const nameInputs = screen.getAllByRole('textbox').filter(
+      (el) => (el as HTMLInputElement).value === ''
+    );
+    expect(nameInputs.length).toBeGreaterThan(0);
   });
 });
