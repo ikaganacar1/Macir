@@ -1,4 +1,3 @@
-import { t } from '../i18n';
 import {
   Box,
   Button,
@@ -10,15 +9,14 @@ import {
   Title,
 } from '@mantine/core';
 import {
+  IconAlertTriangle,
   IconChartBar,
   IconClipboardList,
-  IconLayoutDashboard,
   IconPackage,
   IconShoppingCart,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { IconAlertTriangle, IconBolt, IconHistory } from '@tabler/icons-react';
 import { api, endpoints } from '../api';
 
 interface DashboardStats {
@@ -27,132 +25,143 @@ interface DashboardStats {
   low_stock: { product_id: number }[];
 }
 
-export default function GroceryMain(_props: { onLogout: () => void }) {
+export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
-
   const today = new Date().toISOString().split('T')[0];
 
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ['grocery-dashboard-today', today],
     queryFn: () =>
-      api
-        .get(endpoints.dashboard, {
-          params: { range: 'today', date: today },
-        })
-        .then((r) => r.data),
+      api.get(endpoints.dashboard, { params: { range: 'today', date: today } }).then((r) => r.data),
   });
 
-  // frontend/src/pages/GroceryMain.tsx
-  const actions = [
-    {
-      label: t`Record Sales`,
-      icon: <IconShoppingCart size={28} />,
-      color: 'orange',
-      path: '/sales/new',  // Changed from '/grocery/sales/new'
-    },
-    {
-      label: t`Add Stock`,
-      icon: <IconPackage size={28} />,
-      color: 'blue',
-      path: '/stock/new',  // Changed from '/grocery/stock/new'
-    },
-    {
-      label: t`Products`,
-      icon: <IconClipboardList size={28} />,
-      color: 'green',
-      path: '/products',   // Changed from '/grocery/products'
-    },
-    {
-      label: t`Reports`,
-      icon: <IconChartBar size={28} />,
-      color: 'grape',
-      path: '/dashboard',  // Changed from '/grocery/dashboard'
-    },
-  ];
+  const lowStockCount = stats?.low_stock?.length ?? 0;
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout/');
+    } finally {
+      onLogout();
+    }
+  };
+
+  const todayLabel = new Date().toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
-    <Stack p='md' gap='md'>
+    <Stack p='md' gap='md' style={{ minHeight: '100vh', background: '#f9faf7' }}>
+      {/* Header */}
       <Group justify='space-between'>
-        <Title order={3}>🛒 Macır</Title>
-        <Text size='sm' c='dimmed'>
-          {new Date().toLocaleDateString()}
-        </Text>
+        <Title order={3} c='green'>🌿 Macır</Title>
+        <Text size='sm' c='dimmed'>{todayLabel}</Text>
       </Group>
 
-      {/* Quick stats strip */}
-      <Paper withBorder p='sm' radius='md'>
-        <Group justify='space-around'>
-          <Box ta='center'>
-            <Text fw={700} c='orange'>
-              {stats?.low_stock?.length ?? 0}
-            </Text>
-            <Text size='xs' c='dimmed'>{t`Low Stock`}</Text>
-          </Box>
-          <Box ta='center'>
-            <Text fw={700} c='blue'>
-              ₺{stats ? parseFloat(String(stats.total_sales)).toFixed(2) : '0.00'}
-            </Text>
-            <Text size='xs' c='dimmed'>{t`Today Sales`}</Text>
-          </Box>
-          <Box ta='center'>
-            <Text fw={700} c='green'>
-              ₺{stats ? parseFloat(String(stats.net_profit)).toFixed(2) : '0.00'}
-            </Text>
-            <Text size='xs' c='dimmed'>{t`Profit`}</Text>
-          </Box>
-        </Group>
-      </Paper>
-      {/* Quick Actions based on context */}
-      <Paper withBorder p='sm' radius='md'>
-        <Text size='xs' fw={700} c='dimmed' mb='sm' tt='uppercase'>Quick Actions</Text>
-        <SimpleGrid cols={2} spacing='sm'>
-          <Button
-            variant='light'
-            color='orange'
-            leftSection={<IconAlertTriangle size={18} />}
-            onClick={() => navigate('/stock/new')}
-            disabled={!stats?.low_stock?.length}
-          >
-            Restock {stats?.low_stock?.length ? `(${stats.low_stock.length})` : ''}
-          </Button>
-          <Button
-            variant='light'
-            color='blue'
-            leftSection={<IconHistory size={18} />}
-            onClick={() => navigate('/sales/new')}
-          >
-            Repeat Last Sale
-          </Button>
-        </SimpleGrid>
-      </Paper>
-      {/* Action buttons 2x2 */}
-      <SimpleGrid cols={2} spacing='md'>
-        {actions.map((action) => (
-          <Button
-            key={action.path}
-            color={action.color}
-            h={90}
-            onClick={() => navigate(action.path)}
-            styles={{ inner: { flexDirection: 'column', gap: 6 } }}
-          >
-            {action.icon}
-            <Text size='sm' fw={600}>
-              {action.label}
-            </Text>
-          </Button>
-        ))}
+      {/* Today's stats — tappable, navigate to dashboard */}
+      <SimpleGrid cols={2} spacing='sm'>
+        <Paper
+          withBorder
+          p='md'
+          style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+          onClick={() => navigate('/dashboard')}
+          data-testid="stat-sales"
+        >
+          <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Bugün Satış</Text>
+          <Text size='xl' fw={700} c='green'>
+            ₺{stats ? parseFloat(String(stats.total_sales)).toFixed(2) : '0.00'}
+          </Text>
+        </Paper>
+        <Paper
+          withBorder
+          p='md'
+          style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+          onClick={() => navigate('/dashboard')}
+          data-testid="stat-profit"
+        >
+          <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Kâr</Text>
+          <Text size='xl' fw={700} c='green'>
+            ₺{stats ? parseFloat(String(stats.net_profit)).toFixed(2) : '0.00'}
+          </Text>
+        </Paper>
       </SimpleGrid>
 
-      {/* Detailed dashboard shortcut */}
+      {/* Low stock alert — only if low_stock > 0, taps to Stok Ekle */}
+      {lowStockCount > 0 && (
+        <Box
+          p='sm'
+          style={{
+            background: 'var(--mantine-color-orange-0)',
+            border: '1px solid var(--mantine-color-orange-3)',
+            borderRadius: 'var(--mantine-radius-md)',
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate('/stock/new')}
+          data-testid="low-stock-alert"
+        >
+          <Group gap='xs'>
+            <IconAlertTriangle size={18} color='var(--mantine-color-orange-6)' />
+            <Text size='sm' fw={600} c='orange'>
+              {lowStockCount} üründe stok azaldı — Stok Ekle
+            </Text>
+          </Group>
+        </Box>
+      )}
+
+      {/* Primary action — Satış Yap */}
       <Button
-        variant='default'
-        leftSection={<IconLayoutDashboard size={18} />}
-        onClick={() => navigate('/grocery/dashboard')}
-        size='md'
+        color='green'
+        size='xl'
+        h={70}
+        leftSection={<IconShoppingCart size={26} />}
+        onClick={() => navigate('/sales/new')}
+        data-testid="btn-sales"
       >
-        {t`Detailed Dashboard`}
+        <Text size='lg' fw={700}>Satış Yap</Text>
+      </Button>
+
+      {/* Secondary action — Stok Ekle */}
+      <Button
+        variant='light'
+        color='green'
+        size='lg'
+        h={56}
+        leftSection={<IconPackage size={22} />}
+        onClick={() => navigate('/stock/new')}
+        data-testid="btn-stock"
+      >
+        Stok Ekle
+      </Button>
+
+      {/* Tertiary actions */}
+      <SimpleGrid cols={2} spacing='sm'>
+        <Button
+          variant='default'
+          h={56}
+          leftSection={<IconClipboardList size={20} />}
+          onClick={() => navigate('/products')}
+          data-testid="btn-products"
+        >
+          Ürünler
+        </Button>
+        <Button
+          variant='default'
+          h={56}
+          leftSection={<IconChartBar size={20} />}
+          onClick={() => navigate('/dashboard')}
+          data-testid="btn-reports"
+        >
+          Raporlar
+        </Button>
+      </SimpleGrid>
+
+      <Box style={{ flex: 1 }} />
+
+      {/* Logout */}
+      <Button variant='subtle' color='gray' size='sm' onClick={handleLogout} data-testid="btn-logout">
+        Çıkış Yap
       </Button>
     </Stack>
-    
   );
 }
