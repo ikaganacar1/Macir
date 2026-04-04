@@ -27,7 +27,7 @@ interface DashboardStats {
   low_stock: { product_id: number }[];
 }
 
-export default function GroceryMain() {
+export default function GroceryMain(_props: { onLogout: () => void }) {
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split('T')[0];
