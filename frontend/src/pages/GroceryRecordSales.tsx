@@ -34,6 +34,7 @@ interface Product {
   svg_icon: string | null;
   category_name: string;
   stock_level?: number;
+  low_stock_threshold?: number;
 }
 
 interface SaleItem {
@@ -106,7 +107,7 @@ export default function GroceryRecordSales() {
 
   const confirmItem = () => {
     if (!modalProduct) return;
-    if (parseFloat(modalQty) <= 0) {
+    if (!modalQty || parseFloat(modalQty) <= 0) {
       // Remove item if quantity set to 0
       setSelectedItems((prev) => {
         const next = { ...prev };
@@ -183,6 +184,15 @@ export default function GroceryRecordSales() {
       </Box>
 
       <Stack p='md' gap='md' style={{ paddingBottom: selectedCount > 0 ? 140 : 16 }}>
+        {/* Search */}
+        <TextInput
+          placeholder='Ürün ara...'
+          leftSection={<IconSearch size={16} />}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          size='md'
+        />
+
         {/* Category chips */}
         <ScrollArea>
           <Group gap='xs' wrap='nowrap'>
@@ -204,7 +214,7 @@ export default function GroceryRecordSales() {
         <SimpleGrid cols={3} spacing='sm'>
           {filteredProducts.map((product) => {
             const isSelected = !!selectedItems[product.pk];
-            const isLowStock = (product.stock_level ?? 999) <= 2;
+            const isLowStock = (product.stock_level ?? 999) <= (product.low_stock_threshold ?? 2);
             return (
               <Paper
                 key={product.pk}
@@ -264,15 +274,6 @@ export default function GroceryRecordSales() {
             );
           })}
         </SimpleGrid>
-
-        {/* Search below grid */}
-        <TextInput
-          placeholder='Ürün ara...'
-          leftSection={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          size='md'
-        />
 
         {filteredProducts.length === 0 && (
           <Text c='dimmed' ta='center' size='sm'>Ürün bulunamadı</Text>

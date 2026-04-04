@@ -109,9 +109,11 @@ export default function GroceryDashboard() {
           <Text size='xl' fw={700} c='green'>{data?.items_sold ?? 0}</Text>
         </Paper>
 
-        {/* 7-day chart */}
+        {/* Chart */}
         <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='chart-section'>
-          <Text fw={700} mb='md'>7 Günlük Satış</Text>
+          <Text fw={700} mb='md'>
+            {{ today: 'Bugünkü Satış', week: '7 Günlük Satış', month: 'Aylık Satış' }[range]}
+          </Text>
           <Box h={320}>
             <ResponsiveContainer width='100%' height='100%'>
               <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
