@@ -1,26 +1,23 @@
-import { t } from '../i18n';
 import {
-  ActionIcon,
   Badge,
+  Box,
   Button,
-  Card,
-  Grid,
+  Divider,
   Group,
-  NumberInput,
+  Modal,
   Paper,
-  ScrollArea,
   Stack,
   Text,
-  TextInput,
   Title,
-  SimpleGrid,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconAlertCircle, IconPackage, IconPlus, IconSearch, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconCalendar } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { NumpadInput } from '../components/NumpadInput';
 import { api, endpoints } from '../api';
 
 interface Product {
@@ -32,302 +29,264 @@ interface Product {
   category_name: string;
 }
 
-interface StockLine {
-  product: number;
-  name: string;
-  unit: string;
-  quantity: number;
-  purchase_price: number;
+type LineField = 'quantity' | 'purchase_price';
+
+interface ModalState {
+  productPk: number;
+  field: LineField;
 }
 
 export default function GroceryAddStock() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
-  const [search, setSearch] = useState('');
-  const [lines, setLines] = useState<StockLine[]>([]);
-  const [recentlyAdded, setRecentlyAdded] = useState<number[]>([]);
+
+  const [lines, setLines] = useState<Record<number, { quantity: string; purchase_price: string }>>({});
+  const [modalState, setModalState] = useState<ModalState | null>(null);
+  const [modalValue, setModalValue] = useState('0');
+  const [opened, { open, close }] = useDisclosure(false);
+
+  const today = new Date().toISOString().split('T')[0];
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products'],
     queryFn: () => api.get(endpoints.products).then((r) => r.data),
   });
 
-  const { data: dashboardData } = useQuery({
-    queryKey: ['grocery-dashboard'],
-    queryFn: () => api.get(endpoints.dashboard, { params: { range: 'today' } }).then((r) => r.data),
-  });
-
-  // Prioritize low stock items for quick restocking
-  const lowStockProducts = useMemo(() => {
-    return products
-      .filter((p) => p.stock_level <= p.low_stock_threshold)
-      .sort((a, b) => a.stock_level - b.stock_level)
-      .slice(0, 8);
+  // Group products by category, alphabetical within each group
+  const grouped = useMemo(() => {
+    const map = new Map<string, Product[]>();
+    [...products]
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+      .forEach((p) => {
+        const cat = p.category_name || 'Diğer';
+        if (!map.has(cat)) map.set(cat, []);
+        map.get(cat)!.push(p);
+      });
+    return map;
   }, [products]);
 
-  // Recently stocked items (from cache)
-  const recentProducts = useMemo(() => {
-    return products.filter((p) => recentlyAdded.includes(p.pk)).slice(0, 4);
-  }, [products, recentlyAdded]);
+  const openFieldModal = (productPk: number, field: LineField) => {
+    const current = lines[productPk]?.[field] ?? '0';
+    setModalState({ productPk, field });
+    setModalValue(current);
+    open();
+  };
 
-  const searchResults = useMemo(() => {
-    if (search.trim().length < 1) return [];
-    return products
-      .filter((p) => !lines.find((l) => l.product === p.pk)) // Exclude already added
-      .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
-      .slice(0, 6);
-  }, [products, search, lines]);
-
-  const addLine = (product: Product, quickQty?: number) => {
-    if (lines.find((l) => l.product === product.pk)) {
-      // If already exists, increment quantity
-      updateLine(
-        lines.findIndex((l) => l.product === product.pk),
-        'quantity',
-        quickQty || 1
-      );
-      return;
-    }
-    
-    setLines((prev) => [
+  const confirmModal = () => {
+    if (!modalState) return;
+    const { productPk, field } = modalState;
+    setLines((prev) => ({
       ...prev,
-      { 
-        product: product.pk, 
-        name: product.name, 
-        unit: product.unit, 
-        quantity: quickQty || 0, 
-        purchase_price: 0 
+      [productPk]: {
+        quantity: prev[productPk]?.quantity ?? '0',
+        purchase_price: prev[productPk]?.purchase_price ?? '0',
+        [field]: modalValue,
       },
-    ]);
-    
-    if (quickQty) {
-      setRecentlyAdded((prev) => [product.pk, ...prev.slice(0, 4)]);
-    }
-    
-    setSearch('');
-  };
-
-  const updateLine = (index: number, field: 'quantity' | 'purchase_price', value: number) => {
-    setLines((prev) => prev.map((l, i) => {
-      if (i !== index) return l;
-      if (field === 'quantity') {
-        return { ...l, quantity: value };
-      }
-      return { ...l, purchase_price: value };
     }));
+    close();
   };
 
-  const removeLine = (index: number) => {
-    setLines((prev) => prev.filter((_, i) => i !== index));
-  };
+  const filledCount = Object.values(lines).filter(
+    (l) => parseFloat(l.quantity) > 0
+  ).length;
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const today = new Date().toISOString().split('T')[0];
-      const validLines = lines.filter((l) => l.quantity > 0 && l.purchase_price > 0);
-      
-      if (validLines.length === 0) {
-        throw new Error('No valid items');
-      }
+      const validItems = Object.entries(lines)
+        .filter(([, l]) => parseFloat(l.quantity) > 0 && parseFloat(l.purchase_price) > 0)
+        .map(([pk, l]) => ({
+          product: Number(pk),
+          quantity: l.quantity,
+          purchase_price: l.purchase_price,
+        }));
+
+      if (validItems.length === 0) throw new Error('Geçerli ürün yok');
 
       return api.post(endpoints.stockEntries, {
         date: today,
         notes: '',
-        items: validLines.map((l) => ({
-          product: l.product,
-          quantity: l.quantity.toString(),
-          purchase_price: l.purchase_price.toString(),
-        })),
+        items: validItems,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grocery-products'] });
       queryClient.invalidateQueries({ queryKey: ['grocery-dashboard'] });
-      notifications.show({ message: t`Stock entry saved!`, color: 'green' });
+      notifications.show({ message: 'Stok girişi kaydedildi!', color: 'green' });
       navigate('/');
     },
     onError: () => {
-      notifications.show({ message: t`Failed to save`, color: 'red' });
+      notifications.show({ message: 'Kayıt başarısız', color: 'red' });
     },
   });
 
-  const totalCost = lines.reduce((sum, l) => sum + (l.quantity * l.purchase_price), 0);
-  const totalItems = lines.reduce((sum, l) => sum + l.quantity, 0);
+  const modalProduct = modalState ? products.find((p) => p.pk === modalState.productPk) : null;
+  const isQtyField = modalState?.field === 'quantity';
 
   return (
-    <Stack p='md' gap='md'>
-      <Title order={4}>📦 {t`Add Stock`}</Title>
-
-      {/* Low Stock Alert - Priority Restocking */}
-      {lowStockProducts.length > 0 && lines.length === 0 && (
-        <Card withBorder color='orange' bg='orange.0' style={{ borderColor: 'var(--mantine-color-orange-3)' }}>
-          <Group gap='xs' mb='sm'>
-            <IconAlertCircle color='var(--mantine-color-orange-5)' />
-            <Text fw={700} size='sm' c='orange'>Low Stock - Restock Now</Text>
-          </Group>
-          <SimpleGrid cols={2} spacing='xs'>
-            {lowStockProducts.map((product) => (
-              <Button
-                key={product.pk}
-                variant='light'
-                color='orange'
-                size='xs'
-                onClick={() => addLine(product)}
-                justify='space-between'
-                rightSection={
-                  <Badge size='xs' color='red' variant='filled'>
-                    {product.stock_level} left
-                  </Badge>
-                }
-              >
-                {product.name}
-              </Button>
-            ))}
-          </SimpleGrid>
-        </Card>
-      )}
-
-      {/* Recently Stocked Quick Add */}
-      {recentProducts.length > 0 && (
-        <Paper withBorder p='sm' radius='md'>
-          <Text size='xs' fw={700} c='dimmed' mb='sm' tt='uppercase'>Recently Stocked</Text>
+    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
+      {/* Sticky header */}
+      <Box
+        p='md'
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          background: '#f9faf7',
+          borderBottom: '1px solid #e8f5e9',
+        }}
+      >
+        <Group justify='space-between'>
           <Group gap='xs'>
-            {recentProducts.map((product) => (
-              <Button
-                key={product.pk}
-                variant='outline'
-                color='blue'
-                size='xs'
-                onClick={() => addLine(product)}
-                leftSection={<IconPlus size={12} />}
-              >
-                {product.name}
-              </Button>
-            ))}
+            <Button variant='subtle' color='green' px='xs' onClick={() => navigate('/')}>
+              <IconArrowLeft size={20} />
+            </Button>
+            <Title order={4}>Stok Ekle</Title>
           </Group>
-        </Paper>
-      )}
-
-      {/* Search */}
-      <TextInput
-        placeholder={t`Search to add more products...`}
-        leftSection={<IconSearch size={16} />}
-        value={search}
-        onChange={(e) => setSearch(e.currentTarget.value)}
-        size='md'
-      />
-
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <Paper withBorder p='sm' radius='md'>
-          <Text size='xs' c='dimmed' mb='xs'>Tap to add:</Text>
           <Group gap='xs'>
-            {searchResults.map((product) => (
-              <Button
-                key={product.pk}
-                variant='light'
-                color='blue'
-                onClick={() => addLine(product)}
-                size='sm'
-              >
-                {product.name}
-              </Button>
-            ))}
+            <IconCalendar size={16} color='var(--mantine-color-green-6)' />
+            <Text size='sm' c='dimmed'>
+              {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
           </Group>
-        </Paper>
-      )}
+        </Group>
+      </Box>
 
-      {/* Added Lines with Quick Quantity Buttons */}
-      {lines.length > 0 && (
-        <Stack gap='sm'>
-          <Text fw={700} size='sm'>{t`Stock Entry Items`}</Text>
-          <ScrollArea h={lines.length > 3 ? 300 : undefined}>
-            <Stack gap='sm'>
-              {lines.map((line, i) => (
-                <Paper key={line.product} withBorder p='sm' radius='md' shadow='sm'>
+      {/* Product list grouped by category */}
+      <Stack p='md' gap='md' style={{ paddingBottom: 100 }}>
+        {Array.from(grouped.entries()).map(([category, catProducts]) => (
+          <Stack key={category} gap='xs'>
+            <Divider
+              label={<Text size='xs' fw={700} tt='uppercase' c='dimmed'>{category}</Text>}
+              labelPosition='left'
+            />
+            {catProducts.map((product) => {
+              const line = lines[product.pk];
+              const qty = line?.quantity ?? '0';
+              const price = line?.purchase_price ?? '0';
+              const hasQty = parseFloat(qty) > 0;
+              const isLow = product.stock_level <= product.low_stock_threshold;
+
+              return (
+                <Paper
+                  key={product.pk}
+                  withBorder
+                  p='sm'
+                  style={{
+                    border: hasQty ? '2px solid var(--mantine-color-green-5)' : '1px solid #e8f5e9',
+                    background: hasQty ? 'var(--mantine-color-green-0)' : 'white',
+                  }}
+                >
                   <Group justify='space-between' mb='xs'>
                     <Group gap='xs'>
-                      <IconPackage size={18} color='var(--mantine-color-blue-5)' />
-                      <Text fw={600}>{line.name}</Text>
-                      <Badge size='sm' variant='light'>{line.unit}</Badge>
+                      <Text fw={600} size='sm'>{product.name}</Text>
+                      {isLow ? (
+                        <Badge size='xs' color='orange' variant='light' data-testid={`low-stock-${product.pk}`}>
+                          ⚠️ {product.stock_level} {product.unit}
+                        </Badge>
+                      ) : (
+                        <Badge size='xs' color='green' variant='light'>
+                          {product.stock_level} {product.unit}
+                        </Badge>
+                      )}
                     </Group>
-                    <ActionIcon color='red' variant='subtle' onClick={() => removeLine(i)}>
-                      <IconTrash size={16} />
-                    </ActionIcon>
                   </Group>
-                  
-                  <Grid gutter='xs'>
-                    <Grid.Col span={6}>
-                      <NumberInput
-                        label={t`Quantity`}
-                        value={line.quantity}
-                        onChange={(v) => updateLine(i, 'quantity', Number(v) || 0)}
-                        min={0}
-                        decimalScale={3}
-                        size='sm'
-                        rightSection={<Text size='xs' c='dimmed' pr='sm'>{line.unit}</Text>}
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={6}>
-                      <NumberInput
-                        label={t`Purchase Price`}
-                        value={line.purchase_price}
-                        onChange={(v) => updateLine(i, 'purchase_price', Number(v) || 0)}
-                        min={0}
-                        decimalScale={2}
-                        prefix='₺'
-                        size='sm'
-                      />
-                    </Grid.Col>
-                  </Grid>
-
-                  {/* Quick quantity buttons */}
-                  <Group gap='xs' mt='xs'>
-                    {[1, 5, 10, 25].map((qty) => (
-                      <Button
-                        key={qty}
-                        size='xs'
-                        variant='subtle'
-                        color='gray'
-                        onClick={() => updateLine(i, 'quantity', line.quantity + qty)}
-                      >
-                        +{qty}
-                      </Button>
-                    ))}
+                  <Group gap='xs'>
+                    <Button
+                      variant={hasQty ? 'filled' : 'light'}
+                      color='green'
+                      size='sm'
+                      style={{ flex: 1, minWidth: 0 }}
+                      onClick={() => openFieldModal(product.pk, 'quantity')}
+                      data-testid={`qty-btn-${product.pk}`}
+                    >
+                      <Stack gap={0} align='center'>
+                        <Text size='10px' opacity={0.8}>Miktar</Text>
+                        <Text size='sm' fw={700}>
+                          {hasQty ? `${qty} ${product.unit}` : '—'}
+                        </Text>
+                      </Stack>
+                    </Button>
+                    <Button
+                      variant={parseFloat(price) > 0 ? 'filled' : 'light'}
+                      color='green'
+                      size='sm'
+                      style={{ flex: 1, minWidth: 0 }}
+                      onClick={() => openFieldModal(product.pk, 'purchase_price')}
+                      data-testid={`price-btn-${product.pk}`}
+                    >
+                      <Stack gap={0} align='center'>
+                        <Text size='10px' opacity={0.8}>Alış Fiyatı</Text>
+                        <Text size='sm' fw={700}>
+                          {parseFloat(price) > 0 ? `₺${parseFloat(price).toFixed(2)}` : '—'}
+                        </Text>
+                      </Stack>
+                    </Button>
                   </Group>
                 </Paper>
-              ))}
-            </Stack>
-          </ScrollArea>
+              );
+            })}
+          </Stack>
+        ))}
+      </Stack>
 
-          {/* Summary Footer */}
-          <Paper withBorder p='sm' radius='md' bg='gray.0'>
-            <Group justify='space-between' mb='sm'>
-              <Text size='sm'>Items: <b>{lines.length}</b></Text>
-              <Text size='sm'>Total Qty: <b>{totalItems.toFixed(1)}</b></Text>
-              <Text size='sm' fw={700} c='blue'>Total Cost: ₺{totalCost.toFixed(2)}</Text>
-            </Group>
-            <Button
-              color='green'
-              onClick={() => saveMutation.mutate()}
-              loading={saveMutation.isPending}
-              fullWidth
-              size='md'
-              disabled={!lines.some((l) => l.quantity > 0 && l.purchase_price > 0)}
-            >
-              {t`Save Stock Entry`}
-            </Button>
-          </Paper>
+      {/* Sticky footer */}
+      <Box
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          background: '#f9faf7',
+          borderTop: '1px solid #e8f5e9',
+          padding: '12px 16px',
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+        }}
+      >
+        <Group justify='space-between' mb='xs'>
+          <Text size='sm' c='dimmed'>
+            {filledCount > 0 ? `${filledCount} ürün eklendi` : 'Ürün miktarı girin'}
+          </Text>
+        </Group>
+        <Button
+          color='green'
+          fullWidth
+          size='md'
+          disabled={filledCount === 0}
+          loading={saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+          data-testid="save-button"
+        >
+          Kaydet
+        </Button>
+      </Box>
+
+      {/* NumpadInput Modal */}
+      <Modal
+        opened={opened}
+        onClose={close}
+        centered
+        size='sm'
+        title={
+          modalProduct
+            ? `${modalProduct.name} — ${isQtyField ? 'Miktar' : 'Alış Fiyatı'}`
+            : ''
+        }
+      >
+        <Stack>
+          {!isQtyField && (
+            <Text size='xs' c='dimmed' ta='center'>₺ cinsinden alış fiyatını girin</Text>
+          )}
+          {isQtyField && modalProduct && (
+            <Text size='xs' c='dimmed' ta='center'>{modalProduct.unit} cinsinden miktarı girin</Text>
+          )}
+          <NumpadInput value={modalValue} onChange={setModalValue} />
+          <Group grow>
+            <Button variant='default' onClick={close}>İptal</Button>
+            <Button color='green' onClick={confirmModal} data-testid="confirm-modal-btn">Tamam</Button>
+          </Group>
         </Stack>
-      )}
-
-      {lines.length === 0 && !search && lowStockProducts.length === 0 && (
-        <Paper withBorder p='xl' radius='md' style={{ textAlign: 'center' }}>
-          <IconPackage size={48} color='var(--mantine-color-gray-3)' style={{ margin: '0 auto' }} />
-          <Text c='dimmed' mt='sm'>Search for products or check low stock alerts above</Text>
-        </Paper>
-      )}
+      </Modal>
     </Stack>
   );
 }
