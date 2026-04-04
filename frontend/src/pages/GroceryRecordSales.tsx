@@ -105,7 +105,17 @@ export default function GroceryRecordSales() {
   };
 
   const confirmItem = () => {
-    if (!modalProduct || parseFloat(modalQty) <= 0) return;
+    if (!modalProduct) return;
+    if (parseFloat(modalQty) <= 0) {
+      // Remove item if quantity set to 0
+      setSelectedItems((prev) => {
+        const next = { ...prev };
+        delete next[modalProduct.pk];
+        return next;
+      });
+      close();
+      return;
+    }
     setSelectedItems((prev) => ({
       ...prev,
       [modalProduct.pk]: {
@@ -220,6 +230,7 @@ export default function GroceryRecordSales() {
                 {/* Low stock dot */}
                 {isLowStock && (
                   <Box
+                    data-testid="low-stock-indicator"
                     style={{
                       position: 'absolute',
                       top: 6,

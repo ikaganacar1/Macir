@@ -74,9 +74,7 @@ describe('GroceryRecordSales', () => {
     await waitFor(() => {
       expect(screen.getByText('Havuç')).toBeInTheDocument();
     });
-    // Havuç has stock_level: 1, so it should have the low stock indicator
-    // We verify the product card renders (the dot is a styled Box, hard to query directly)
-    expect(screen.getByText('Havuç')).toBeInTheDocument();
+    expect(screen.getByTestId('low-stock-indicator')).toBeInTheDocument();
   });
 
   it('shows category chips including Tümü', async () => {
