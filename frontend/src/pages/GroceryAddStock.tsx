@@ -87,7 +87,7 @@ export default function GroceryAddStock() {
   };
 
   const filledCount = Object.values(lines).filter(
-    (l) => parseFloat(l.quantity) > 0
+    (l) => parseFloat(l.quantity) > 0 && parseFloat(l.purchase_price) > 0
   ).length;
 
   const saveMutation = useMutation({
