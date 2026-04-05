@@ -326,7 +326,7 @@ export default function GroceryProducts() {
                   onClick={isAdded ? undefined : () => selectPreset(preset)}
                 >
                   <Text size='xl' style={{ lineHeight: 1 }}>{preset.emoji}</Text>
-                  <Text size='xs' fw={500} lineClamp={1} mt={4}>{preset.name}</Text>
+                  <Text size='xs' fw={500} lineClamp={2} mt={4} style={{ lineHeight: 1.2 }}>{preset.name}</Text>
                 </Paper>
               );
             })}
