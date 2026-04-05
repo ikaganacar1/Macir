@@ -23,7 +23,9 @@ class CategoryModelTest(TestCase):
     """Tests for the Category model."""
 
     def test_create_category(self):
-        cat = Category.objects.create(name='Vegetables', order=1)
+        from django.contrib.auth.models import User
+        user = User.objects.create_user(username='u1', password='p')
+        cat = Category.objects.create(name='Vegetables', order=1, owner=user)
         self.assertEqual(str(cat), 'Vegetables')
         self.assertEqual(cat.order, 1)
 
@@ -32,7 +34,9 @@ class ProductModelTest(TestCase):
     """Tests for the Product model."""
 
     def setUp(self):
-        self.cat = Category.objects.create(name='Fruits', order=1)
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_user(username='u1', password='p')
+        self.cat = Category.objects.create(name='Fruits', order=1, owner=self.user)
 
     def test_create_product(self):
         p = Product.objects.create(
@@ -41,6 +45,7 @@ class ProductModelTest(TestCase):
             unit='kg',
             sell_price='18.00',
             low_stock_threshold='5.00',
+            owner=self.user,
         )
         self.assertEqual(str(p), 'Tomato')
         self.assertEqual(p.unit, 'kg')
@@ -48,15 +53,15 @@ class ProductModelTest(TestCase):
 
     def test_stock_level_starts_at_zero(self):
         p = Product.objects.create(
-            name='Cucumber', category=self.cat, unit='kg', sell_price='12.00'
+            name='Cucumber', category=self.cat, unit='kg', sell_price='12.00', owner=self.user,
         )
         self.assertEqual(p.stock_level, 0)
 
     def test_stock_level_after_entry(self):
         p = Product.objects.create(
-            name='Lemon', category=self.cat, unit='kg', sell_price='25.00'
+            name='Lemon', category=self.cat, unit='kg', sell_price='25.00', owner=self.user,
         )
-        entry = StockEntry.objects.create(date='2026-04-01')
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry, product=p, quantity='10.00', purchase_price='15.00'
         )
@@ -64,13 +69,13 @@ class ProductModelTest(TestCase):
 
     def test_stock_level_after_sale(self):
         p = Product.objects.create(
-            name='Banana', category=self.cat, unit='kg', sell_price='22.00'
+            name='Banana', category=self.cat, unit='kg', sell_price='22.00', owner=self.user,
         )
-        entry = StockEntry.objects.create(date='2026-04-01')
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry, product=p, quantity='20.00', purchase_price='14.00'
         )
-        sale = SaleRecord.objects.create(date='2026-04-01')
+        sale = SaleRecord.objects.create(date='2026-04-01', owner=self.user)
         SaleItem.objects.create(
             sale=sale, product=p, quantity='3.00', sell_price='22.00'
         )
@@ -78,13 +83,13 @@ class ProductModelTest(TestCase):
 
     def test_most_recent_purchase_price(self):
         p = Product.objects.create(
-            name='Onion', category=self.cat, unit='kg', sell_price='8.00'
+            name='Onion', category=self.cat, unit='kg', sell_price='8.00', owner=self.user,
         )
-        entry1 = StockEntry.objects.create(date='2026-03-25')
+        entry1 = StockEntry.objects.create(date='2026-03-25', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry1, product=p, quantity='10.00', purchase_price='5.00'
         )
-        entry2 = StockEntry.objects.create(date='2026-04-01')
+        entry2 = StockEntry.objects.create(date='2026-04-01', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry2, product=p, quantity='10.00', purchase_price='6.00'
         )
@@ -95,9 +100,11 @@ class SerializerTest(TestCase):
     """Tests for Grocery serializers."""
 
     def setUp(self):
-        self.cat = Category.objects.create(name='Vegetables', order=1)
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_user(username='u2', password='p')
+        self.cat = Category.objects.create(name='Vegetables', order=1, owner=self.user)
         self.product = Product.objects.create(
-            name='Tomato', category=self.cat, unit='kg', sell_price='18.00'
+            name='Tomato', category=self.cat, unit='kg', sell_price='18.00', owner=self.user,
         )
 
     def test_category_serializer(self):
@@ -110,7 +117,7 @@ class SerializerTest(TestCase):
         self.assertEqual(float(s.data['stock_level']), 0)
 
     def test_stock_entry_serializer_nested(self):
-        entry = StockEntry.objects.create(date='2026-04-01')
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry, product=self.product, quantity='10.00', purchase_price='12.00'
         )
@@ -119,7 +126,7 @@ class SerializerTest(TestCase):
         self.assertEqual(s.data['items'][0]['product'], self.product.pk)
 
     def test_sale_record_serializer_nested(self):
-        sale = SaleRecord.objects.create(date='2026-04-01')
+        sale = SaleRecord.objects.create(date='2026-04-01', owner=self.user)
         SaleItem.objects.create(
             sale=sale, product=self.product, quantity='2.50', sell_price='18.00'
         )
@@ -146,9 +153,12 @@ class GroceryAPITest(APITestCase):
             username='testuser', password='testpass123'
         )
         self.client.force_authenticate(user=self.user)
-        self.cat = Category.objects.create(name='Fruits', order=1)
+        # Remove auto-seeded defaults so counts are predictable in tests.
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Fruits', order=1, owner=self.user)
         self.product = Product.objects.create(
-            name='Tomato', category=self.cat, unit='kg', sell_price='18.00'
+            name='Tomato', category=self.cat, unit='kg', sell_price='18.00', owner=self.user,
         )
 
     def test_list_categories(self):
@@ -170,6 +180,11 @@ class GroceryAPITest(APITestCase):
         self.assertEqual(len(r_all.data), 1)
 
     def test_create_sale_record(self):
+        # Add stock first so the stock validation passes.
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
+        StockEntryItem.objects.create(
+            entry=entry, product=self.product, quantity='10.000', purchase_price='12.00'
+        )
         payload = {
             'date': '2026-04-01',
             'notes': '',
@@ -223,7 +238,7 @@ class GroceryAPITest(APITestCase):
         self.assertEqual(StockEntry.objects.count(), 0)
 
     def test_dashboard_today(self):
-        sale = SaleRecord.objects.create(date='2026-04-01')
+        sale = SaleRecord.objects.create(date='2026-04-01', owner=self.user)
         SaleItem.objects.create(
             sale=sale, product=self.product, quantity='2.00', sell_price='18.00'
         )
@@ -233,12 +248,12 @@ class GroceryAPITest(APITestCase):
 
     def test_dashboard_profit_calculation(self):
         """Profit = (sell_price - purchase_price) × quantity, not sales - stock_cost."""
-        entry = StockEntry.objects.create(date='2026-04-01')
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
         StockEntryItem.objects.create(
             entry=entry, product=self.product, quantity='20.00', purchase_price='12.00'
         )
         # Sell 5kg at ₺18. Purchase price was ₺12. Profit = (18-12)*5 = ₺30.
-        sale = SaleRecord.objects.create(date='2026-04-01')
+        sale = SaleRecord.objects.create(date='2026-04-01', owner=self.user)
         SaleItem.objects.create(
             sale=sale, product=self.product, quantity='5.00', sell_price='18.00'
         )
@@ -252,3 +267,25 @@ class GroceryAPITest(APITestCase):
         self.client.force_authenticate(user=None)
         r = self.client.get('/api/grocery/products/')
         self.assertIn(r.status_code, [401, 403])
+
+    def test_sale_record_items_include_product_name(self):
+        entry = StockEntry.objects.create(date='2026-04-01', owner=self.user)
+        StockEntryItem.objects.create(
+            entry=entry, product=self.product, quantity='10.000', purchase_price='12.00'
+        )
+        payload = {
+            'date': '2026-04-01',
+            'notes': '',
+            'items': [
+                {'product': self.product.pk, 'quantity': '2.500', 'sell_price': '18.00'}
+            ],
+        }
+        r = self.client.post(
+            '/api/grocery/sale-records/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 201)
+        r2 = self.client.get('/api/grocery/sale-records/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.data[0]['items'][0]['product_name'], 'Tomato')
