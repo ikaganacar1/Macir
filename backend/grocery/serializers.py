@@ -109,9 +109,11 @@ class StockEntrySerializer(serializers.ModelSerializer):
 class SaleItemSerializer(serializers.ModelSerializer):
     """Serializer for SaleItem."""
 
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
     class Meta:
         model = SaleItem
-        fields = ['pk', 'product', 'quantity', 'sell_price']
+        fields = ['pk', 'product', 'product_name', 'quantity', 'sell_price']
 
 
 class SaleRecordSerializer(serializers.ModelSerializer):
