@@ -31,15 +31,22 @@ from grocery.serializers import (
 
 
 class CategoryList(generics.ListCreateAPIView):
-    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Category.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 class CategoryDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Category.objects.filter(owner=self.request.user)
 
 
 def _annotate_products(qs):
@@ -83,12 +90,11 @@ class ProductList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Default: active products only. Pass ?active=false to include inactive (for management UI).
         active_param = self.request.query_params.get('active', 'true')
         if active_param.lower() == 'false':
-            qs = Product.objects.all()
+            qs = Product.objects.filter(owner=self.request.user)
         else:
-            qs = Product.objects.filter(is_active=True)
+            qs = Product.objects.filter(owner=self.request.user, is_active=True)
         category = self.request.query_params.get('category')
         if category:
             qs = qs.filter(category_id=category)
@@ -97,59 +103,78 @@ class ProductList(generics.ListCreateAPIView):
             qs = qs.filter(name__icontains=search)
         return _annotate_products(qs)
 
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
 
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return _annotate_products(Product.objects.all())
+        return _annotate_products(Product.objects.filter(owner=self.request.user))
 
 
 class StockEntryList(generics.ListCreateAPIView):
-    queryset = StockEntry.objects.all()
     serializer_class = StockEntrySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return StockEntry.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 class StockEntryDetail(generics.RetrieveAPIView):
-    queryset = StockEntry.objects.all()
     serializer_class = StockEntrySerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return StockEntry.objects.filter(owner=self.request.user)
+
 
 class SaleRecordList(generics.ListCreateAPIView):
-    queryset = SaleRecord.objects.all()
     serializer_class = SaleRecordSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SaleRecord.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 class SaleRecordDetail(generics.RetrieveAPIView):
-    queryset = SaleRecord.objects.all()
     serializer_class = SaleRecordSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return SaleRecord.objects.filter(owner=self.request.user)
 
-def _compute_stock_levels(active_only=True):
+
+def _compute_stock_levels(user, active_only=True):
     """
-    Compute stock level per product using 3 queries (not N×2).
-    Returns a dict: {product_id: Decimal stock_level}.
+    Compute stock level per product for a given user using bulk queries (not N+2).
+    Returns a tuple: (received_map, sold_map) — dicts of {product_id: Decimal}.
     """
-    filter_kw = {'product__is_active': True} if active_only else {}
+    product_filter = {'product__owner': user}
+    if active_only:
+        product_filter['product__is_active'] = True
+
     received_map = {
         r['product_id']: r['total']
-        for r in StockEntryItem.objects.filter(**filter_kw)
+        for r in StockEntryItem.objects.filter(**product_filter)
         .values('product_id')
         .annotate(total=Sum('quantity'))
     }
     sold_map = {
         s['product_id']: s['total']
-        for s in SaleItem.objects.filter(**filter_kw)
+        for s in SaleItem.objects.filter(**product_filter)
         .values('product_id')
         .annotate(total=Sum('quantity'))
     }
     return received_map, sold_map
-
 
 
 class DashboardView(APIView):
@@ -158,6 +183,7 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = request.user
         range_param = request.query_params.get('range', 'today')
         date_param = request.query_params.get('date')
         today = parse_date(date_param) if date_param else date.today()
@@ -171,7 +197,10 @@ class DashboardView(APIView):
             start = today.replace(day=1)
             end = today
 
-        sale_items = SaleItem.objects.filter(sale__date__range=(start, end))
+        sale_items = SaleItem.objects.filter(
+            sale__date__range=(start, end),
+            sale__owner=user,
+        )
 
         total_sales = sale_items.aggregate(
             total=Coalesce(
@@ -181,8 +210,6 @@ class DashboardView(APIView):
             )
         )['total']
 
-        # Correct profit: (sell_price - most_recent_purchase_price) × quantity per sale item.
-        # Use a subquery to get the latest purchase price for each product at query time.
         latest_purchase_sq = (
             StockEntryItem.objects
             .filter(product_id=OuterRef('product_id'))
@@ -231,10 +258,9 @@ class DashboardView(APIView):
             for p in products_sold
         ]
 
-        # Low stock: compute all stock levels with 3 queries (not N×2).
-        received_map, sold_map = _compute_stock_levels(active_only=True)
+        received_map, sold_map = _compute_stock_levels(user, active_only=True)
         low_stock = []
-        for p in Product.objects.filter(is_active=True).values(
+        for p in Product.objects.filter(owner=user, is_active=True).values(
             'pk', 'name', 'unit', 'low_stock_threshold'
         ):
             level = received_map.get(p['pk'], Decimal('0')) - sold_map.get(p['pk'], Decimal('0'))
@@ -247,10 +273,12 @@ class DashboardView(APIView):
                     'unit': p['unit'],
                 })
 
-        # 7-day chart: single aggregation query.
         chart_start = today - timedelta(days=6)
         chart_qs = (
-            SaleItem.objects.filter(sale__date__range=(chart_start, today))
+            SaleItem.objects.filter(
+                sale__date__range=(chart_start, today),
+                sale__owner=user,
+            )
             .values('sale__date')
             .annotate(
                 daily_sales=Sum(
