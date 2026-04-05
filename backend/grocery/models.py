@@ -1,6 +1,7 @@
 # src/backend/InvenTree/grocery/models.py
 """Database models for the Grocery module."""
 
+from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Sum
@@ -10,11 +11,18 @@ from django.utils.translation import gettext_lazy as _
 class Category(models.Model):
     """A category grouping grocery products (e.g. Vegetables, Fruits)."""
 
-    name = models.CharField(max_length=100, unique=True, verbose_name=_('Name'))
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='categories',
+        verbose_name=_('Owner'),
+    )
+    name = models.CharField(max_length=100, verbose_name=_('Name'))
     order = models.PositiveIntegerField(default=0, verbose_name=_('Display Order'))
 
     class Meta:
         ordering = ['order', 'name']
+        unique_together = [('owner', 'name')]
         verbose_name = _('Category')
         verbose_name_plural = _('Categories')
 
@@ -29,7 +37,13 @@ class Product(models.Model):
     UNIT_PIECE = 'piece'
     UNIT_CHOICES = [(UNIT_KG, _('kg')), (UNIT_PIECE, _('piece'))]
 
-    name = models.CharField(max_length=200, unique=True, verbose_name=_('Name'))
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='products',
+        verbose_name=_('Owner'),
+    )
+    name = models.CharField(max_length=200, verbose_name=_('Name'))
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -66,6 +80,7 @@ class Product(models.Model):
 
     class Meta:
         ordering = ['category__order', 'name']
+        unique_together = [('owner', 'name')]
         verbose_name = _('Product')
         verbose_name_plural = _('Products')
 
@@ -103,6 +118,12 @@ class Product(models.Model):
 class StockEntry(models.Model):
     """A restocking session (e.g. weekly delivery)."""
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='stock_entries',
+        verbose_name=_('Owner'),
+    )
     date = models.DateField(verbose_name=_('Date'))
     notes = models.TextField(blank=True, default='', verbose_name=_('Notes'))
 
@@ -150,6 +171,12 @@ class StockEntryItem(models.Model):
 class SaleRecord(models.Model):
     """A sales session (typically one per day)."""
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sale_records',
+        verbose_name=_('Owner'),
+    )
     date = models.DateField(verbose_name=_('Date'))
     notes = models.TextField(blank=True, default='', verbose_name=_('Notes'))
 
