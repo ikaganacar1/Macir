@@ -42,3 +42,18 @@ export interface DashboardData {
   }[];
   chart: { date: string; sales: string | number }[];
 }
+
+export interface SaleItem {
+  pk: number;
+  product: number;
+  product_name: string;
+  quantity: string;
+  sell_price: string;
+}
+
+export interface SaleRecord {
+  pk: number;
+  date: string;
+  notes: string;
+  items: SaleItem[];
+}
