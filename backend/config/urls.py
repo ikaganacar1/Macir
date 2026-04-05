@@ -9,7 +9,8 @@ from django.middleware.csrf import get_token
 from django.urls import include, path
 from django.views.decorators.http import require_POST
 
-from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.throttling import AnonRateThrottle
 
 from grocery.api import grocery_api_urls
@@ -30,6 +31,7 @@ def csrf_view(request):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 @throttle_classes([LoginRateThrottle])
 def api_login(request):
     data = request.data
