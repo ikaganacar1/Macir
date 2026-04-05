@@ -23,7 +23,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, endpoints } from '../api';
-import type { Category, Product } from '../types';
+import type { MarketPriceResult, Category, Product } from '../types';
 
 interface Preset {
   name: string;
@@ -123,6 +123,24 @@ const PRESET_PRODUCTS: Preset[] = [
   { name: 'Kuru Üzüm', emoji: '🟤', unit: 'kg', category: 'Diğer' },
   { name: 'Kuru Erik', emoji: '🟣', unit: 'kg', category: 'Diğer' },
 ];
+
+function MarketPriceIndicator({ productName, productPk }: { productName: string; productPk: number }) {
+  const { data } = useQuery<{ results: MarketPriceResult[] }>({
+    queryKey: ['market-price', productName],
+    queryFn: () =>
+      api.get(endpoints.marketPrices, { params: { q: productName } }).then((r) => r.data),
+    staleTime: 30 * 60 * 1000,
+  });
+
+  const cheapest = data?.results?.[0]?.cheapest_stores?.[0];
+  if (!cheapest) return null;
+
+  return (
+    <Text size='xs' c='dimmed' data-testid={`market-price-${productPk}`}>
+      📍 {cheapest.market.toUpperCase()} ₺{cheapest.price.toFixed(2)}
+    </Text>
+  );
+}
 
 export default function GroceryProducts() {
   const navigate = useNavigate();
@@ -285,6 +303,7 @@ export default function GroceryProducts() {
                 <Text size='xs' c='dimmed'>
                   {product.category_name} · ₺{product.sell_price}/{product.unit}
                 </Text>
+                <MarketPriceIndicator productName={product.name} productPk={product.pk} />
               </div>
               <Button
                 variant='subtle'

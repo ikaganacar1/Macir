@@ -14,6 +14,7 @@ vi.mock('../../api', () => ({
   endpoints: {
     products: '/api/grocery/products/',
     categories: '/api/grocery/categories/',
+    marketPrices: '/api/market-prices/search/',
   },
 }));
 
@@ -213,5 +214,46 @@ describe('GroceryProducts', () => {
       (el) => (el as HTMLInputElement).value === ''
     );
     expect(nameInputs.length).toBeGreaterThan(0);
+  });
+
+  it('shows cheapest market price indicator on product card', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('categories')) return Promise.resolve({ data: mockCategories });
+      if (url.includes('market-prices')) return Promise.resolve({
+        data: {
+          results: [
+            {
+              id: '1',
+              title: 'Domates',
+              brand: 'BrandX',
+              imageUrl: null,
+              cheapest_stores: [
+                { market: 'BIM', price: 18.5, unitPrice: '18,50 TL/kg' },
+              ],
+            },
+          ],
+        },
+      });
+      return Promise.resolve({ data: mockProducts });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <MantineProvider>
+            <Notifications />
+            <GroceryProducts />
+          </MantineProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Domates');
+    await waitFor(() => {
+      expect(screen.getByTestId('market-price-1')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('market-price-1')).toHaveTextContent('BIM');
+    expect(screen.getByTestId('market-price-1')).toHaveTextContent('18.50');
   });
 });
