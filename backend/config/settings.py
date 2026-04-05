@@ -84,15 +84,15 @@ _extra_origins = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:81',
-    'http://127.0.0.1:81',
+    'http://localhost:25565',
+    'http://127.0.0.1:25565',
     'http://localhost:5173',
 ] + _extra_origins
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'http://localhost:81',
-    'http://127.0.0.1:81',
+    'http://localhost:25565',
+    'http://127.0.0.1:25565',
 ] + _extra_origins
 
 CORS_ALLOW_CREDENTIALS = True
