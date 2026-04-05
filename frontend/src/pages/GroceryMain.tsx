@@ -14,6 +14,7 @@ import {
   IconChartBar,
   IconClipboardList,
   IconPackage,
+  IconShoppingBag,
   IconShoppingCart,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
@@ -175,6 +176,17 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           Raporlar
         </Button>
       </SimpleGrid>
+
+      <Button
+        variant='default'
+        h={56}
+        fullWidth
+        leftSection={<IconShoppingBag size={20} />}
+        onClick={() => navigate('/market-prices')}
+        data-testid='btn-market-prices'
+      >
+        Piyasa Fiyatları
+      </Button>
 
       {/* Son Satışlar */}
       <Box>

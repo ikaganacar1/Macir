@@ -13,6 +13,7 @@ vi.mock('../../api', () => ({
   endpoints: {
     dashboard: '/api/grocery/dashboard/',
     saleRecords: '/api/grocery/sale-records/',
+    marketPrices: '/api/market-prices/search/',
   },
 }));
 
@@ -171,5 +172,17 @@ describe('GroceryMain', () => {
       expect(screen.getByTestId('sale-row-1')).toBeInTheDocument();
       expect(screen.getByText('₺54.00')).toBeInTheDocument();
     });
+  });
+
+  it('btn-market-prices navigates to /market-prices', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('dashboard')) return Promise.resolve({ data: mockStats });
+      if (url.includes('sale-records')) return Promise.resolve({ data: mockSaleRecords });
+      return Promise.resolve({ data: [] });
+    });
+    renderComponent();
+    const btn = await screen.findByTestId('btn-market-prices');
+    fireEvent.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith('/market-prices');
   });
 });
