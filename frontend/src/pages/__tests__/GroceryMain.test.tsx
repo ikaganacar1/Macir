@@ -12,6 +12,7 @@ vi.mock('../../api', () => ({
   },
   endpoints: {
     dashboard: '/api/grocery/dashboard/',
+    saleRecords: '/api/grocery/sale-records/',
   },
 }));
 
@@ -23,6 +24,25 @@ vi.mock('react-router-dom', async () => {
 
 import { api } from '../../api';
 import GroceryMain from '../GroceryMain';
+
+const mockSaleRecords = [
+  {
+    pk: 1,
+    date: '2026-04-05',
+    notes: '',
+    items: [
+      { pk: 1, product: 1, product_name: 'Domates', quantity: '3.000', sell_price: '18.00' },
+    ],
+  },
+  {
+    pk: 2,
+    date: '2026-04-04',
+    notes: '',
+    items: [
+      { pk: 2, product: 2, product_name: 'Elma', quantity: '2.000', sell_price: '12.00' },
+    ],
+  },
+];
 
 const mockStats = {
   total_sales: 150.50,
@@ -52,7 +72,12 @@ function renderComponent(onLogout = vi.fn()) {
 describe('GroceryMain', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.get).mockResolvedValue({ data: mockStats });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (String(url).includes('sale-records')) {
+        return Promise.resolve({ data: mockSaleRecords });
+      }
+      return Promise.resolve({ data: mockStats });
+    });
     vi.mocked(api.post).mockResolvedValue({});
   });
 
@@ -80,7 +105,12 @@ describe('GroceryMain', () => {
   });
 
   it('shows low stock alert when products are low', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: mockStatsWithLowStock });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (String(url).includes('sale-records')) {
+        return Promise.resolve({ data: mockSaleRecords });
+      }
+      return Promise.resolve({ data: mockStatsWithLowStock });
+    });
     renderComponent();
     await waitFor(() => {
       expect(screen.getByTestId('low-stock-alert')).toBeInTheDocument();
@@ -115,6 +145,31 @@ describe('GroceryMain', () => {
     fireEvent.click(screen.getByTestId('btn-logout'));
     await waitFor(() => {
       expect(onLogout).toHaveBeenCalled();
+    });
+  });
+
+  it('renders Son Satışlar section header', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Son Satışlar')).toBeInTheDocument();
+    });
+  });
+
+  it('renders Tümünü Görüntüle button that navigates to /sales/history', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-all-sales')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('btn-all-sales'));
+    expect(mockNavigate).toHaveBeenCalledWith('/sales/history');
+  });
+
+  it('renders recent sale record rows with date and total', async () => {
+    renderComponent();
+    await waitFor(() => {
+      // 3.000 × 18.00 = 54.00
+      expect(screen.getByTestId('sale-row-1')).toBeInTheDocument();
+      expect(screen.getByText('₺54.00')).toBeInTheDocument();
     });
   });
 });

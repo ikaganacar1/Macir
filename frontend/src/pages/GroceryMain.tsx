@@ -4,6 +4,7 @@ import {
   Group,
   Paper,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
   Title,
@@ -18,7 +19,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
-import type { DashboardData } from '../types';
+import type { DashboardData, SaleRecord } from '../types';
 
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
@@ -31,6 +32,30 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   });
 
   const lowStockCount = stats?.low_stock?.length ?? 0;
+
+  const { data: saleRecords, isLoading: salesLoading } = useQuery<SaleRecord[]>({
+    queryKey: ['sale-records'],
+    queryFn: () => api.get(endpoints.saleRecords).then((r) => r.data),
+  });
+
+  const recentSales = saleRecords?.slice(0, 5) ?? [];
+
+  function recordTotal(record: SaleRecord): string {
+    const total = record.items.reduce(
+      (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
+      0
+    );
+    return total.toFixed(2);
+  }
+
+  function trFullDate(dateStr: string): string {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
 
   const handleLogout = async () => {
     try {
@@ -150,6 +175,50 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           Raporlar
         </Button>
       </SimpleGrid>
+
+      {/* Son Satışlar */}
+      <Box>
+        <Group justify='space-between' mb='xs'>
+          <Text fw={600} size='sm'>Son Satışlar</Text>
+          <Button
+            variant='subtle'
+            color='green'
+            size='xs'
+            p={0}
+            data-testid='btn-all-sales'
+            onClick={() => navigate('/sales/history')}
+          >
+            Tümünü Görüntüle →
+          </Button>
+        </Group>
+        {salesLoading ? (
+          <Stack gap='xs'>
+            {[1, 2, 3].map((i) => <Skeleton key={i} h={36} radius='md' />)}
+          </Stack>
+        ) : recentSales.length === 0 ? (
+          <Text size='sm' c='dimmed' ta='center' py='sm'>Henüz satış yok</Text>
+        ) : (
+          <Stack gap={4}>
+            {recentSales.map((record) => (
+              <Group
+                key={record.pk}
+                justify='space-between'
+                px='sm'
+                py='xs'
+                data-testid={`sale-row-${record.pk}`}
+                style={{
+                  background: 'white',
+                  borderRadius: 'var(--mantine-radius-md)',
+                  border: '1px solid #e8f5e9',
+                }}
+              >
+                <Text size='sm' c='dimmed'>{trFullDate(record.date)}</Text>
+                <Text size='sm' fw={600} c='green'>₺{recordTotal(record)}</Text>
+              </Group>
+            ))}
+          </Stack>
+        )}
+      </Box>
 
       <Box style={{ flex: 1 }} />
 
