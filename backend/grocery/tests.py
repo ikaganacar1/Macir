@@ -403,3 +403,56 @@ class FetchMarketPricesTest(TestCase):
         self.assertIn('https://api.marketfiyati.org.tr/api/v2/search', call_kwargs[0])
         headers = call_kwargs[1]['headers']
         self.assertIn('Mozilla', headers['user-agent'])
+
+
+class MarketPriceSearchViewTest(APITestCase):
+    """Tests for the market_price_search Django view."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='mpuser', password='pass')
+        self.client.force_authenticate(user=self.user)
+        # Clear any cached values between tests
+        from django.core.cache import cache as django_cache
+        django_cache.clear()
+
+    @patch('grocery.market_prices.fetch_market_prices')
+    def test_returns_200_with_results(self, mock_fetch):
+        mock_fetch.return_value = [
+            {'id': '1', 'title': 'Domates', 'brand': 'X', 'imageUrl': None,
+             'cheapest_stores': [{'market': 'BIM', 'price': 20.0, 'unitPrice': '20 TL'}]}
+        ]
+        response = self.client.get('/api/market-prices/search/?q=domates')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('results', data)
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['title'], 'Domates')
+
+    def test_returns_400_when_q_missing(self):
+        response = self.client.get('/api/market-prices/search/')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+    def test_returns_401_when_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get('/api/market-prices/search/?q=domates')
+        # DRF returns 403 for session-based auth when unauthenticated (no WWW-Authenticate challenge)
+        self.assertIn(response.status_code, (401, 403))
+
+    @patch('grocery.market_prices.fetch_market_prices')
+    def test_caches_result_on_second_call(self, mock_fetch):
+        mock_fetch.return_value = [
+            {'id': '1', 'title': 'Elma', 'brand': 'Y', 'imageUrl': None,
+             'cheapest_stores': []}
+        ]
+        self.client.get('/api/market-prices/search/?q=elma')
+        self.client.get('/api/market-prices/search/?q=elma')
+        # fetch_market_prices should only be called once — second hit is cached
+        mock_fetch.assert_called_once()
+
+    @patch('grocery.market_prices.fetch_market_prices')
+    def test_empty_result_is_cached(self, mock_fetch):
+        mock_fetch.return_value = []
+        self.client.get('/api/market-prices/search/?q=unknown')
+        self.client.get('/api/market-prices/search/?q=unknown')
+        mock_fetch.assert_called_once()

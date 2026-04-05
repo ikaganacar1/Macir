@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.throttling import AnonRateThrottle
 
 from grocery.api import grocery_api_urls
+from grocery.market_prices import market_price_search
 
 
 class LoginRateThrottle(AnonRateThrottle):
@@ -55,4 +56,5 @@ urlpatterns = [
     path('api/auth/csrf/', csrf_view),
     path('api/auth/login/', api_login),
     path('api/auth/logout/', api_logout),
+    path('api/market-prices/search/', market_price_search),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
