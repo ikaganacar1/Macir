@@ -139,7 +139,7 @@ class SaleRecordList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return SaleRecord.objects.filter(owner=self.request.user)
+        return SaleRecord.objects.filter(owner=self.request.user).order_by('-date', '-pk')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)

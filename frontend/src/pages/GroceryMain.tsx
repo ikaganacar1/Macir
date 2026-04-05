@@ -21,6 +21,23 @@ import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { DashboardData, SaleRecord } from '../types';
 
+function recordTotal(record: SaleRecord): string {
+  const total = record.items.reduce(
+    (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
+    0
+  );
+  return total.toFixed(2);
+}
+
+function trFullDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
@@ -39,23 +56,6 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   });
 
   const recentSales = saleRecords?.slice(0, 5) ?? [];
-
-  function recordTotal(record: SaleRecord): string {
-    const total = record.items.reduce(
-      (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
-      0
-    );
-    return total.toFixed(2);
-  }
-
-  function trFullDate(dateStr: string): string {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  }
 
   const handleLogout = async () => {
     try {
