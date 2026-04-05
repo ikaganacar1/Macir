@@ -1,50 +1,30 @@
 """
-Management command: python manage.py seed
+Management command: python manage.py seed [--user <username>] [--clear]
 
-Populates the database with realistic Turkish grocery store demo data:
-- 3 categories, 20 products
-- 4 stock entry sessions over the past 2 weeks
-- 7 daily sale records covering the past week
+Populates demo data for a user:
+- Stock entry sessions over the past 2 weeks
+- Daily sale records covering the past week
+
+Categories and products are NOT created here — they are seeded by the
+post_save signal (or seed_defaults command). This command only adds
+stock and sales on top of whatever products exist for the user.
+
+Usage:
+    python manage.py seed                    # uses first superuser
+    python manage.py seed --user umut
+    python manage.py seed --user ika --clear # wipes ika's stock+sales first
 """
 
 from datetime import date, timedelta
 from decimal import Decimal
-from django.core.management.base import BaseCommand
+
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from grocery.models import Category, Product, SaleItem, SaleRecord, StockEntry, StockEntryItem
 
+from grocery.models import Product, SaleItem, SaleRecord, StockEntry, StockEntryItem
 
-CATEGORIES = [
-    {'name': 'Sebze', 'order': 1},
-    {'name': 'Meyve', 'order': 2},
-    {'name': 'Diğer', 'order': 3},
-]
-
-PRODUCTS = [
-    # Sebze
-    {'name': 'Domates',       'category': 'Sebze',  'unit': 'kg',    'sell_price': '18.00', 'low_stock_threshold': '5'},
-    {'name': 'Salatalık',     'category': 'Sebze',  'unit': 'kg',    'sell_price': '14.00', 'low_stock_threshold': '3'},
-    {'name': 'Kırmızı Biber', 'category': 'Sebze',  'unit': 'kg',    'sell_price': '22.00', 'low_stock_threshold': '3'},
-    {'name': 'Patlıcan',      'category': 'Sebze',  'unit': 'kg',    'sell_price': '16.00', 'low_stock_threshold': '2'},
-    {'name': 'Patates',       'category': 'Sebze',  'unit': 'kg',    'sell_price': '12.00', 'low_stock_threshold': '10'},
-    {'name': 'Soğan',         'category': 'Sebze',  'unit': 'kg',    'sell_price': '10.00', 'low_stock_threshold': '5'},
-    {'name': 'Havuç',         'category': 'Sebze',  'unit': 'kg',    'sell_price': '13.00', 'low_stock_threshold': '3'},
-    {'name': 'Ispanak',       'category': 'Sebze',  'unit': 'kg',    'sell_price': '20.00', 'low_stock_threshold': '2'},
-    {'name': 'Marul',         'category': 'Sebze',  'unit': 'kg',    'sell_price': '15.00', 'low_stock_threshold': '2'},
-    # Meyve
-    {'name': 'Elma',          'category': 'Meyve',  'unit': 'kg',    'sell_price': '24.00', 'low_stock_threshold': '5'},
-    {'name': 'Portakal',      'category': 'Meyve',  'unit': 'kg',    'sell_price': '20.00', 'low_stock_threshold': '5'},
-    {'name': 'Muz',           'category': 'Meyve',  'unit': 'kg',    'sell_price': '28.00', 'low_stock_threshold': '3'},
-    {'name': 'Limon',         'category': 'Meyve',  'unit': 'kg',    'sell_price': '18.00', 'low_stock_threshold': '2'},
-    {'name': 'Üzüm',          'category': 'Meyve',  'unit': 'kg',    'sell_price': '35.00', 'low_stock_threshold': '2'},
-    {'name': 'Kivi',          'category': 'Meyve',  'unit': 'kg',    'sell_price': '40.00', 'low_stock_threshold': '2'},
-    # Diğer
-    {'name': 'Ceviz',         'category': 'Diğer',  'unit': 'kg',    'sell_price': '180.00','low_stock_threshold': '1'},
-    {'name': 'Nohut',         'category': 'Diğer',  'unit': 'kg',    'sell_price': '45.00', 'low_stock_threshold': '2'},
-    {'name': 'Mercimek',      'category': 'Diğer',  'unit': 'kg',    'sell_price': '38.00', 'low_stock_threshold': '2'},
-    {'name': 'Ay Çekirdeği',  'category': 'Diğer',  'unit': 'kg',    'sell_price': '55.00', 'low_stock_threshold': '1'},
-    {'name': 'Kuru İncir',    'category': 'Diğer',  'unit': 'kg',    'sell_price': '120.00','low_stock_threshold': '1'},
-]
+User = get_user_model()
 
 # Stock entries: (days_ago, [(product_name, qty, purchase_price), ...])
 STOCK_ENTRIES = [
@@ -164,51 +144,46 @@ SALES = [
 
 
 class Command(BaseCommand):
-    help = 'Seed the database with demo grocery store data'
+    help = 'Seed demo stock and sales data for a user'
 
     def add_arguments(self, parser):
-        parser.add_argument('--clear', action='store_true', help='Clear existing data before seeding')
+        parser.add_argument('--user', default=None, help='Username to seed data for (default: first superuser)')
+        parser.add_argument('--clear', action='store_true', help="Clear user's stock and sales before seeding")
 
     def handle(self, *args, **options):
+        username = options['user']
+        if username:
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                raise CommandError(f'User "{username}" does not exist')
+        else:
+            user = User.objects.filter(is_superuser=True).order_by('pk').first()
+            if not user:
+                raise CommandError('No superuser found. Pass --user <username>.')
+
         if options['clear']:
-            self.stdout.write('Clearing existing data...')
-            SaleItem.objects.all().delete()
-            SaleRecord.objects.all().delete()
-            StockEntryItem.objects.all().delete()
-            StockEntry.objects.all().delete()
-            Product.objects.all().delete()
-            Category.objects.all().delete()
+            self.stdout.write(f'Clearing stock and sales for "{user.username}"...')
+            SaleItem.objects.filter(sale__owner=user).delete()
+            SaleRecord.objects.filter(owner=user).delete()
+            StockEntryItem.objects.filter(entry__owner=user).delete()
+            StockEntry.objects.filter(owner=user).delete()
 
         today = date.today()
+        product_map = {p.name: p for p in Product.objects.filter(owner=user)}
+
+        if not product_map:
+            self.stdout.write(self.style.WARNING(
+                f'No products found for "{user.username}". '
+                'Run seed_defaults first: python manage.py seed_defaults --user ' + user.username
+            ))
+            return
 
         with transaction.atomic():
-            # Categories
-            self.stdout.write('Creating categories...')
-            cat_map = {}
-            for cat_data in CATEGORIES:
-                cat, _ = Category.objects.get_or_create(name=cat_data['name'], defaults={'order': cat_data['order']})
-                cat_map[cat.name] = cat
-
-            # Products
-            self.stdout.write('Creating products...')
-            product_map = {}
-            for p in PRODUCTS:
-                product, _ = Product.objects.get_or_create(
-                    name=p['name'],
-                    defaults={
-                        'category': cat_map[p['category']],
-                        'unit': p['unit'],
-                        'sell_price': Decimal(p['sell_price']),
-                        'low_stock_threshold': Decimal(p['low_stock_threshold']),
-                    }
-                )
-                product_map[product.name] = product
-
-            # Stock entries
             self.stdout.write('Creating stock entries...')
             for days_ago, items in STOCK_ENTRIES:
                 entry_date = today - timedelta(days=days_ago)
-                entry = StockEntry.objects.create(date=entry_date)
+                entry = StockEntry.objects.create(owner=user, date=entry_date)
                 for name, qty, price in items:
                     if name in product_map:
                         StockEntryItem.objects.create(
@@ -218,11 +193,10 @@ class Command(BaseCommand):
                             purchase_price=Decimal(price),
                         )
 
-            # Sales
             self.stdout.write('Creating sales records...')
             for days_ago, items in SALES:
                 sale_date = today - timedelta(days=days_ago)
-                sale = SaleRecord.objects.create(date=sale_date)
+                sale = SaleRecord.objects.create(owner=user, date=sale_date)
                 for name, qty, price in items:
                     if name in product_map:
                         SaleItem.objects.create(
@@ -233,6 +207,6 @@ class Command(BaseCommand):
                         )
 
         self.stdout.write(self.style.SUCCESS(
-            f'Done! {len(CATEGORIES)} categories, {len(PRODUCTS)} products, '
-            f'{len(STOCK_ENTRIES)} stock entries, {len(SALES)} sale records created.'
+            f'Done! {len(STOCK_ENTRIES)} stock entries, {len(SALES)} sale records '
+            f'created for "{user.username}".'
         ))
