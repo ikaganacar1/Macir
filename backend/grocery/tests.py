@@ -3,6 +3,7 @@
 
 import json
 from decimal import Decimal
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -289,3 +290,117 @@ class GroceryAPITest(APITestCase):
         r2 = self.client.get('/api/grocery/sale-records/')
         self.assertEqual(r2.status_code, 200)
         self.assertEqual(r2.data[0]['items'][0]['product_name'], 'Tomato')
+
+
+class FetchMarketPricesTest(TestCase):
+    """Tests for the fetch_market_prices pure function."""
+
+    def _mock_response(self, data: dict, status_code: int = 200):
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.json.return_value = data
+        mock_resp.raise_for_status.return_value = None
+        if status_code >= 400:
+            from requests.exceptions import HTTPError
+            mock_resp.raise_for_status.side_effect = HTTPError()
+        return mock_resp
+
+    def _make_content_item(self, id: str, title: str, brand: str, image_url=None, depots=None):
+        if depots is None:
+            depots = []
+        return {
+            "id": id,
+            "title": title,
+            "brand": brand,
+            "imageUrl": image_url,
+            "refinedQuantityUnit": None,
+            "refinedVolumeOrWeight": None,
+            "categories": [],
+            "productDepotInfoList": depots,
+        }
+
+    def _make_depot(self, market: str, price: float, unit_price: str):
+        return {
+            "depotId": "1",
+            "depotName": market,
+            "price": price,
+            "unitPrice": unit_price,
+            "marketAdi": market,
+            "percentage": 0.0,
+            "longitude": 0.0,
+            "latitude": 0.0,
+            "indexTime": "2026-04-05T00:00:00",
+        }
+
+    @patch('grocery.market_prices.requests.post')
+    def test_returns_parsed_results(self, mock_post):
+        depots = [
+            self._make_depot('BIM', 25.0, '25,00 TL/kg'),
+            self._make_depot('A101', 22.0, '22,00 TL/kg'),
+            self._make_depot('SOK', 30.0, '30,00 TL/kg'),
+        ]
+        item = self._make_content_item('abc', 'Domates', 'BrandX', depots=depots)
+        mock_post.return_value = self._mock_response({
+            'numberOfFound': 1,
+            'searchResultType': 1,
+            'content': [item],
+        })
+
+        from grocery.market_prices import fetch_market_prices
+        results = fetch_market_prices('domates')
+
+        self.assertEqual(len(results), 1)
+        r = results[0]
+        self.assertEqual(r['id'], 'abc')
+        self.assertEqual(r['title'], 'Domates')
+        self.assertEqual(r['brand'], 'BrandX')
+        self.assertIsNone(r['imageUrl'])
+        # sorted ascending by price: A101=22, BIM=25, SOK=30
+        self.assertEqual(r['cheapest_stores'][0]['market'], 'A101')
+        self.assertAlmostEqual(r['cheapest_stores'][0]['price'], 22.0)
+        self.assertEqual(r['cheapest_stores'][0]['unitPrice'], '22,00 TL/kg')
+
+    @patch('grocery.market_prices.requests.post')
+    def test_returns_at_most_5_stores(self, mock_post):
+        depots = [
+            self._make_depot(f'Market{i}', float(10 + i), f'{10+i} TL')
+            for i in range(8)
+        ]
+        item = self._make_content_item('x', 'X', 'Y', depots=depots)
+        mock_post.return_value = self._mock_response({
+            'numberOfFound': 1, 'searchResultType': 1, 'content': [item],
+        })
+
+        from grocery.market_prices import fetch_market_prices
+        results = fetch_market_prices('x')
+        self.assertLessEqual(len(results[0]['cheapest_stores']), 5)
+
+    @patch('grocery.market_prices.requests.post')
+    def test_returns_empty_on_network_error(self, mock_post):
+        import requests as req_lib
+        mock_post.side_effect = req_lib.exceptions.ConnectionError('fail')
+
+        from grocery.market_prices import fetch_market_prices
+        self.assertEqual(fetch_market_prices('anything'), [])
+
+    @patch('grocery.market_prices.requests.post')
+    def test_returns_empty_on_http_error(self, mock_post):
+        mock_post.return_value = self._mock_response({}, status_code=500)
+
+        from grocery.market_prices import fetch_market_prices
+        self.assertEqual(fetch_market_prices('anything'), [])
+
+    @patch('grocery.market_prices.requests.post')
+    def test_posts_to_correct_url_with_headers(self, mock_post):
+        mock_post.return_value = self._mock_response({
+            'numberOfFound': 0, 'searchResultType': 0, 'content': [],
+        })
+
+        from grocery.market_prices import fetch_market_prices
+        fetch_market_prices('elma')
+
+        call_kwargs = mock_post.call_args
+        self.assertIn('https://api.marketfiyati.org.tr/api/v2/search', call_kwargs[0])
+        headers = call_kwargs[1]['headers']
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertIn('Mozilla', headers['user-agent'])
