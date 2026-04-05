@@ -402,5 +402,4 @@ class FetchMarketPricesTest(TestCase):
         call_kwargs = mock_post.call_args
         self.assertIn('https://api.marketfiyati.org.tr/api/v2/search', call_kwargs[0])
         headers = call_kwargs[1]['headers']
-        self.assertEqual(headers['content-type'], 'application/json')
         self.assertIn('Mozilla', headers['user-agent'])

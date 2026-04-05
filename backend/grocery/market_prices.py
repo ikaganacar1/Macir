@@ -1,4 +1,4 @@
-import json
+import logging
 
 import requests
 from django.core.cache import cache
@@ -9,7 +9,6 @@ from rest_framework.response import Response
 _BASE_URL = "https://api.marketfiyati.org.tr/api/v2/search"
 _HEADERS = {
     "cache-control": "no-cache",
-    "content-type": "application/json",
     "user-agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
@@ -17,18 +16,21 @@ _HEADERS = {
 }
 _TIMEOUT = 10
 
+logger = logging.getLogger(__name__)
+
 
 def fetch_market_prices(keywords: str) -> list[dict]:
     try:
         resp = requests.post(
             _BASE_URL,
             headers=_HEADERS,
-            data=json.dumps({"keywords": keywords}),
+            json={"keywords": keywords},
             timeout=_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
+    except (requests.exceptions.RequestException, ValueError) as e:
+        logger.warning("fetch_market_prices failed for %r: %s", keywords, e)
         return []
 
     results = []
