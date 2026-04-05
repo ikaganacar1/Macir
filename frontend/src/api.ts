@@ -17,4 +17,5 @@ export const endpoints = {
   stockEntries: '/api/grocery/stock-entries/',
   saleRecords:  '/api/grocery/sale-records/',
   dashboard:    '/api/grocery/dashboard/',
+  marketPrices: '/api/market-prices/search/',
 };

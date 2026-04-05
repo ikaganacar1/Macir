@@ -57,3 +57,17 @@ export interface SaleRecord {
   notes: string;
   items: SaleItem[];
 }
+
+export interface MarketStore {
+  market: string;
+  price: number;
+  unitPrice: string;
+}
+
+export interface MarketPriceResult {
+  id: string;
+  title: string;
+  brand: string;
+  imageUrl: string | null;
+  cheapest_stores: MarketStore[];
+}
