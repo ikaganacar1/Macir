@@ -6,7 +6,7 @@ services:
       - .env
     environment:
       DEBUG: "false"
-      EXTRA_ALLOWED_ORIGINS: "http://100.74.141.51:25565,http://100.74.141.51"
+      EXTRA_ALLOWED_ORIGINS: "http://100.74.141.51:25565,http://100.74.141.51,http://213.14.151.79:25565,http://213.14.151.79"
     volumes:
       - db_data:/app/db
       - media_data:/app/media
