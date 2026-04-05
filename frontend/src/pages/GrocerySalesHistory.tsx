@@ -22,12 +22,17 @@ import type { SaleRecord } from '../types';
 
 type DateRange = 'all' | 'today' | 'week' | 'month';
 
+function getLocalDate(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+}
+
 function getToday(): string {
-  return new Date().toISOString().split('T')[0];
+  return getLocalDate();
 }
 
 function getMonday(): string {
-  const d = new Date();
+  const todayStr = getLocalDate();
+  const d = new Date(todayStr + 'T00:00:00');
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
@@ -35,9 +40,8 @@ function getMonday(): string {
 }
 
 function getFirstOfMonth(): string {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().split('T')[0];
+  const todayStr = getLocalDate();
+  return todayStr.substring(0, 8) + '01';
 }
 
 function recordTotal(record: SaleRecord): string {
