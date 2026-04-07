@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Box,
   Button,
   Group,
@@ -14,6 +15,7 @@ import {
   IconChartBar,
   IconClipboardList,
   IconPackage,
+  IconSettings,
   IconShoppingBag,
   IconShoppingCart,
 } from '@tabler/icons-react';
@@ -77,7 +79,18 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
       {/* Header */}
       <Group justify='space-between'>
         <Title order={3} c='green'>🌿 Macır</Title>
-        <Text size='sm' c='dimmed'>{todayLabel}</Text>
+        <Group gap='xs' align='center'>
+          <Text size='sm' c='dimmed'>{todayLabel}</Text>
+          <ActionIcon
+            variant='subtle'
+            color='gray'
+            size='md'
+            onClick={() => navigate('/profile')}
+            data-testid='btn-profile'
+          >
+            <IconSettings size={18} />
+          </ActionIcon>
+        </Group>
       </Group>
 
       {/* Today's stats — tappable, navigate to dashboard */}

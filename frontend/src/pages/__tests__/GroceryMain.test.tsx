@@ -14,6 +14,7 @@ vi.mock('../../api', () => ({
     dashboard: '/api/grocery/dashboard/',
     saleRecords: '/api/grocery/sale-records/',
     marketPrices: '/api/market-prices/search/',
+    profile: '/api/grocery/profile/',
   },
 }));
 
@@ -184,5 +185,17 @@ describe('GroceryMain', () => {
     const btn = await screen.findByTestId('btn-market-prices');
     fireEvent.click(btn);
     expect(mockNavigate).toHaveBeenCalledWith('/market-prices');
+  });
+
+  it('btn-profile navigates to /profile', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('dashboard')) return Promise.resolve({ data: mockStats });
+      if (url.includes('sale-records')) return Promise.resolve({ data: mockSaleRecords });
+      return Promise.resolve({ data: [] });
+    });
+    renderComponent();
+    const btn = await screen.findByTestId('btn-profile');
+    fireEvent.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith('/profile');
   });
 });
