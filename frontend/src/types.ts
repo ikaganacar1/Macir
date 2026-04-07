@@ -71,3 +71,9 @@ export interface MarketPriceResult {
   imageUrl: string | null;
   cheapest_stores: MarketStore[];
 }
+
+export interface StoreProfile {
+  latitude: number;
+  longitude: number;
+  search_radius_km: number;
+}

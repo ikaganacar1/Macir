@@ -18,4 +18,5 @@ export const endpoints = {
   saleRecords:  '/api/grocery/sale-records/',
   dashboard:    '/api/grocery/dashboard/',
   marketPrices: '/api/market-prices/search/',
+  profile:      '/api/grocery/profile/',
 };
