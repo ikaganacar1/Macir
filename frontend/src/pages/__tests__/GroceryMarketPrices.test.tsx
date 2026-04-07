@@ -11,6 +11,7 @@ vi.mock('../../api', () => ({
   },
   endpoints: {
     marketPrices: '/api/market-prices/search/',
+    products: '/api/grocery/products/',
   },
 }));
 
@@ -20,7 +21,6 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-// marketLogos util uses real file paths — mock it so jsdom doesn't need assets
 vi.mock('../../utils/marketLogos', () => ({
   getMarketLogo: (market: string) => `/market-logos/${market.toLowerCase()}.png`,
   KNOWN_MARKETS: ['bim', 'a101', 'migros', 'carrefour'],
@@ -49,8 +49,13 @@ const mockResults = [
   },
 ];
 
-// Empty response for popular product background queries
+const mockProducts = [
+  { pk: 1, name: 'Domates', category: 1, category_name: 'Sebze', unit: 'kg', sell_price: '15.00', is_active: true, stock_level: 5, most_recent_purchase_price: null, low_stock_threshold: '2.00', expiry_note: '', svg_icon: null },
+  { pk: 2, name: 'Patates', category: 1, category_name: 'Sebze', unit: 'kg', sell_price: '12.00', is_active: true, stock_level: 3, most_recent_purchase_price: null, low_stock_threshold: '2.00', expiry_note: '', svg_icon: null },
+];
+
 const emptyResponse = { data: { results: [] } };
+const emptyProducts = { data: [] };
 
 function renderComponent() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -69,25 +74,40 @@ function renderComponent() {
 describe('GroceryMarketPrices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: popular product background queries return empty
-    vi.mocked(api.get).mockResolvedValue(emptyResponse);
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve(emptyResponse);
+    });
   });
 
-  it('renders welcome screen with hero and product cards when no search', async () => {
+  it('shows default greengrocery products when user has no products', async () => {
     renderComponent();
-    // "Piyasa Fiyatları" appears in both header and hero — at least 2 occurrences
-    expect(screen.getAllByText('Piyasa Fiyatları').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/anlık fiyat karşılaştırması/)).toBeInTheDocument();
     expect(screen.getByText('Güncel Fiyatlar')).toBeInTheDocument();
-    // Popular product names appear in cards
-    expect(screen.getByText('Patates')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Domates')).toBeInTheDocument();
+      expect(screen.getByText('Patates')).toBeInTheDocument();
+      expect(screen.getByText('Salatalık')).toBeInTheDocument();
+    });
+  });
+
+  it('shows user products when they have products in Ürünler', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve({ data: mockProducts });
+      return Promise.resolve(emptyResponse);
+    });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Ürünlerinizin Piyasa Fiyatları')).toBeInTheDocument();
+      expect(screen.getByText('Domates')).toBeInTheDocument();
+      expect(screen.getByText('Patates')).toBeInTheDocument();
+    });
   });
 
   it('shows skeleton while loading search results', async () => {
-    vi.mocked(api.get).mockImplementation((url, config) => {
-      // Popular product queries resolve immediately; search query hangs
-      if ((config as any)?.params?.q && !['domates','patates','soğan','elma','muz','biber','yumurta','ekmek'].includes((config as any).params.q.toLowerCase())) {
-        return new Promise(() => {}); // never resolves (search)
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      if (url.includes('market-prices') && url.includes('xyz123')) {
+        return new Promise(() => {}); // never resolves
       }
       return Promise.resolve(emptyResponse);
     });
@@ -102,13 +122,15 @@ describe('GroceryMarketPrices', () => {
   });
 
   it('renders results after search', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve({ data: { results: mockResults } });
+    });
     renderComponent();
     fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
       target: { value: 'domates' },
     });
     fireEvent.click(screen.getByText('Ara'));
-    // After search, welcome screen is replaced by result cards
     await waitFor(() => {
       expect(screen.getByTestId('result-card-1')).toBeInTheDocument();
       expect(screen.getByTestId('result-card-2')).toBeInTheDocument();
@@ -116,7 +138,10 @@ describe('GroceryMarketPrices', () => {
   });
 
   it('shows "Sonuç bulunamadı" on empty results', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { results: [] } });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve({ data: { results: [] } });
+    });
     renderComponent();
     fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
       target: { value: 'xyz' },
@@ -128,7 +153,10 @@ describe('GroceryMarketPrices', () => {
   });
 
   it('expands card on click to show store prices with logos', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve({ data: { results: mockResults } });
+    });
     renderComponent();
     fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
       target: { value: 'domates' },
@@ -136,15 +164,10 @@ describe('GroceryMarketPrices', () => {
     fireEvent.click(screen.getByText('Ara'));
     await screen.findByTestId('result-card-1');
 
-    // Store prices not visible initially
-    expect(screen.queryByAltText('bim')).not.toBeInTheDocument();
+    expect(screen.queryByText('₺18.50')).not.toBeInTheDocument();
 
-    // Click to expand
     fireEvent.click(screen.getByTestId('result-card-1'));
-
-    // Logo shown as img with alt matching market name
     expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
-    // Price shown
     expect(screen.getByText('₺18.50')).toBeInTheDocument();
   });
 
@@ -155,7 +178,10 @@ describe('GroceryMarketPrices', () => {
   });
 
   it('triggers search on Enter key', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve({ data: { results: mockResults } });
+    });
     renderComponent();
     const input = screen.getByPlaceholderText('Ürün adı yazın...');
     fireEvent.change(input, { target: { value: 'domates' } });
@@ -166,7 +192,10 @@ describe('GroceryMarketPrices', () => {
   });
 
   it('multiple cards can be expanded simultaneously', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve(emptyProducts);
+      return Promise.resolve({ data: { results: mockResults } });
+    });
     renderComponent();
     fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
       target: { value: 'domates' },
@@ -175,14 +204,10 @@ describe('GroceryMarketPrices', () => {
     await screen.findByTestId('result-card-1');
     await screen.findByTestId('result-card-2');
 
-    // Expand first card (has stores)
     fireEvent.click(screen.getByTestId('result-card-1'));
     expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
 
-    // Expand second card (no stores — nothing extra added)
     fireEvent.click(screen.getByTestId('result-card-2'));
-
-    // First card's content still visible
     expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
   });
 });

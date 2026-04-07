@@ -10,13 +10,13 @@ const LOGO_MAP: Record<string, string> = {
 export function getMarketLogo(marketName: string): string | null {
   const key = marketName
     .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace('ş', 's')
-    .replace('ı', 'i')
-    .replace('ç', 'c')
-    .replace('ğ', 'g')
-    .replace('ö', 'o')
-    .replace('ü', 'u');
+    .replace(/[\s_]+/g, '')   // remove spaces AND underscores (API uses tarim_kredi)
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u');
   return LOGO_MAP[key] ?? null;
 }
 

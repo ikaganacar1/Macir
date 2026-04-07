@@ -16,22 +16,16 @@ import {
   IconChevronUp,
   IconSearch,
 } from '@tabler/icons-react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
-import type { MarketPriceResult, MarketStore } from '../types';
-import { getMarketLogo, KNOWN_MARKETS } from '../utils/marketLogos';
+import type { MarketPriceResult, MarketStore, Product } from '../types';
+import { getMarketLogo } from '../utils/marketLogos';
 
-const POPULAR_PRODUCTS = [
-  { name: 'Domates', emoji: '🍅' },
-  { name: 'Patates', emoji: '🥔' },
-  { name: 'Soğan', emoji: '🧅' },
-  { name: 'Elma', emoji: '🍎' },
-  { name: 'Muz', emoji: '🍌' },
-  { name: 'Biber', emoji: '🫑' },
-  { name: 'Yumurta', emoji: '🥚' },
-  { name: 'Ekmek', emoji: '🍞' },
+const DEFAULT_PRODUCTS = [
+  'Domates', 'Patates', 'Soğan', 'Elma',
+  'Muz', 'Biber', 'Salatalık', 'Patlıcan',
 ];
 
 const DISPLAY_MARKETS = ['bim', 'a101', 'migros', 'carrefour'];
@@ -60,7 +54,7 @@ function getPriceForMarket(results: MarketPriceResult[], market: string): number
   return null;
 }
 
-function PopularProductCard({ name, emoji }: { name: string; emoji: string }) {
+function ProductPriceCard({ name }: { name: string }) {
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
     queryKey: ['market-prices', name.toLowerCase()],
     queryFn: () =>
@@ -69,19 +63,17 @@ function PopularProductCard({ name, emoji }: { name: string; emoji: string }) {
   });
 
   const results = data?.results ?? [];
+  const hasAnyPrice = DISPLAY_MARKETS.some((m) => getPriceForMarket(results, m) !== null);
 
   return (
     <Paper withBorder p='sm' style={{ border: '1px solid #e8f5e9' }}>
-      <Group gap='xs' mb='xs'>
-        <Text style={{ fontSize: 20 }}>{emoji}</Text>
-        <Text fw={600} size='sm'>{name}</Text>
-      </Group>
+      <Text fw={600} size='sm' mb='xs'>{name}</Text>
       {isLoading ? (
         <Stack gap={4}>
-          <Skeleton height={18} radius='sm' />
-          <Skeleton height={18} radius='sm' />
+          <Skeleton height={16} radius='sm' />
+          <Skeleton height={16} radius='sm' />
         </Stack>
-      ) : results.length === 0 ? (
+      ) : !hasAnyPrice ? (
         <Text size='xs' c='dimmed'>Veri bulunamadı</Text>
       ) : (
         <Stack gap={4}>
@@ -101,7 +93,13 @@ function PopularProductCard({ name, emoji }: { name: string; emoji: string }) {
   );
 }
 
-function WelcomeScreen() {
+function WelcomeScreen({ products }: { products: Product[] }) {
+  const activeNames = products
+    .filter((p) => p.is_active)
+    .map((p) => p.name);
+
+  const displayNames = activeNames.length > 0 ? activeNames : DEFAULT_PRODUCTS;
+
   return (
     <Stack gap='md' px='md' pt='xs' pb='xl'>
       {/* Hero */}
@@ -124,13 +122,13 @@ function WelcomeScreen() {
         </Group>
       </Box>
 
-      {/* Popular products grid */}
+      {/* Product price grid */}
       <Text size='xs' fw={600} c='dimmed' tt='uppercase' style={{ letterSpacing: '0.05em' }}>
-        Güncel Fiyatlar
+        {activeNames.length > 0 ? 'Ürünlerinizin Piyasa Fiyatları' : 'Güncel Fiyatlar'}
       </Text>
       <SimpleGrid cols={2} spacing='sm'>
-        {POPULAR_PRODUCTS.map((p) => (
-          <PopularProductCard key={p.name} name={p.name} emoji={p.emoji} />
+        {displayNames.map((name) => (
+          <ProductPriceCard key={name} name={name} />
         ))}
       </SimpleGrid>
     </Stack>
@@ -142,6 +140,12 @@ export default function GroceryMarketPrices() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const { data: productsData } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: () => api.get(endpoints.products).then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
     queryKey: ['market-prices', submittedQuery],
@@ -193,7 +197,6 @@ export default function GroceryMarketPrices() {
           </Button>
           <Title order={5}>Piyasa Fiyatları</Title>
         </Group>
-        {/* Search bar inside header */}
         <Group gap='xs' mt='xs'>
           <TextInput
             flex={1}
@@ -212,7 +215,7 @@ export default function GroceryMarketPrices() {
 
       {/* Content */}
       {!submittedQuery ? (
-        <WelcomeScreen />
+        <WelcomeScreen products={productsData ?? []} />
       ) : (
         <Stack p='md' gap='sm'>
           {isLoading && (
