@@ -470,7 +470,7 @@ class StoreProfileTest(TestCase):
         profile = StoreProfile.objects.get(owner=user)
         self.assertAlmostEqual(profile.latitude, 41.0082, places=3)
         self.assertAlmostEqual(profile.longitude, 28.9784, places=3)
-        self.assertEqual(profile.search_radius_km, 50)
+        self.assertEqual(profile.search_radius_km, 5)
 
     def test_profile_str(self):
         user = User.objects.create_user(username='strtest', password='pass')
@@ -491,25 +491,25 @@ class ProfileAPITest(APITestCase):
         data = response.json()
         self.assertAlmostEqual(data['latitude'], 41.0082, places=3)
         self.assertAlmostEqual(data['longitude'], 28.9784, places=3)
-        self.assertEqual(data['search_radius_km'], 50)
+        self.assertEqual(data['search_radius_km'], 5)
 
     def test_patch_profile_updates_location(self):
         response = self.client.patch('/api/grocery/profile/', {
             'latitude': 38.4189,
             'longitude': 27.1287,
-            'search_radius_km': 100,
+            'search_radius_km': 10,
         }, format='json')
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertAlmostEqual(data['latitude'], 38.4189, places=3)
         self.assertAlmostEqual(data['longitude'], 27.1287, places=3)
-        self.assertEqual(data['search_radius_km'], 100)
+        self.assertEqual(data['search_radius_km'], 10)
 
     def test_patch_profile_persists(self):
         self.client.patch('/api/grocery/profile/', {
             'latitude': 39.9179,
             'longitude': 32.8614,
-            'search_radius_km': 25,
+            'search_radius_km': 5,
         }, format='json')
         response = self.client.get('/api/grocery/profile/')
         self.assertAlmostEqual(response.json()['latitude'], 39.9179, places=3)
@@ -539,10 +539,10 @@ class MarketPriceLocationTest(APITestCase):
     def test_uses_profile_location(self, mock_fetch):
         mock_fetch.return_value = []
         StoreProfile.objects.filter(owner=self.user).update(
-            latitude=38.42, longitude=27.13, search_radius_km=75
+            latitude=38.42, longitude=27.13, search_radius_km=7
         )
         self.client.get('/api/market-prices/search/?q=elma')
-        mock_fetch.assert_called_once_with('elma', 38.42, 27.13, 75)
+        mock_fetch.assert_called_once_with('elma', 38.42, 27.13, 7)
 
     @patch('grocery.market_prices.fetch_market_prices')
     def test_different_locations_use_different_cache_keys(self, mock_fetch):

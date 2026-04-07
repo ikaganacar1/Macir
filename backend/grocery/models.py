@@ -233,7 +233,7 @@ class StoreProfile(models.Model):
     )
     latitude = models.FloatField(default=41.0082)   # Istanbul default
     longitude = models.FloatField(default=28.9784)  # Istanbul default
-    search_radius_km = models.IntegerField(default=50)
+    search_radius_km = models.IntegerField(default=5)
 
     def __str__(self):
         return f"{self.owner.username} store profile"

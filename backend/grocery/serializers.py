@@ -174,6 +174,8 @@ class SaleRecordSerializer(serializers.ModelSerializer):
 
 
 class StoreProfileSerializer(serializers.ModelSerializer):
+    search_radius_km = serializers.IntegerField(min_value=1, max_value=10)
+
     class Meta:
         model = StoreProfile
         fields = ['latitude', 'longitude', 'search_radius_km']

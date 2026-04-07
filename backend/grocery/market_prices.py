@@ -19,7 +19,8 @@ _HEADERS = {
 _TIMEOUT = 10
 _DEFAULT_LAT = 41.0082
 _DEFAULT_LNG = 28.9784
-_DEFAULT_RADIUS = 50
+_DEFAULT_RADIUS = 5
+_MAX_RADIUS = 10
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +83,12 @@ def market_price_search(request):
         defaults={
             "latitude": _DEFAULT_LAT,
             "longitude": _DEFAULT_LNG,
-            "search_radius_km": _DEFAULT_RADIUS,
+            "search_radius_km": _DEFAULT_RADIUS,  # 5km
         },
     )
     lat = profile.latitude
     lng = profile.longitude
-    radius = profile.search_radius_km
+    radius = min(profile.search_radius_km, _MAX_RADIUS)
 
     cache_key = f"market_price:{keywords.lower()}:{lat:.4f}:{lng:.4f}"
     cached = cache.get(cache_key)

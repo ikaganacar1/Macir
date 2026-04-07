@@ -30,7 +30,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const RADIUS_PRESETS = [25, 50, 100, 200];
+const RADIUS_PRESETS = [1, 3, 5, 10];
 
 function ClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
   useMapEvents({
@@ -57,7 +57,7 @@ export default function GroceryProfile() {
   // Use loaded values as defaults if user hasn't changed them yet
   const currentLat = lat ?? profile?.latitude ?? 41.0082;
   const currentLng = lng ?? profile?.longitude ?? 28.9784;
-  const currentRadius = radius ?? profile?.search_radius_km ?? 50;
+  const currentRadius = radius ?? profile?.search_radius_km ?? 5;
 
   // Ref tracks latest values so mutation always reads current coords even before re-render
   const coordsRef = useRef({ lat: currentLat, lng: currentLng, radius: currentRadius });
@@ -72,6 +72,7 @@ export default function GroceryProfile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['store-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['market-prices'] });
       notifications.show({ message: 'Konum kaydedildi', color: 'green' });
     },
     onError: () => {

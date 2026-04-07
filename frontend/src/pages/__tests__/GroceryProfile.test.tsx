@@ -103,8 +103,8 @@ describe('GroceryProfile', () => {
   it('shows radius preset buttons', async () => {
     renderComponent();
     await screen.findByTestId('map-marker');
-    expect(screen.getByTestId('radius-50')).toBeInTheDocument();
-    expect(screen.getByTestId('radius-100')).toBeInTheDocument();
+    expect(screen.getByTestId('radius-5')).toBeInTheDocument();
+    expect(screen.getByTestId('radius-10')).toBeInTheDocument();
   });
 
   it('map click updates coordinates display', async () => {
