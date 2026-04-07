@@ -137,4 +137,25 @@ describe('GroceryMarketPrices', () => {
       expect(screen.getByText('Domates')).toBeInTheDocument();
     });
   });
+
+  it('multiple cards can be expanded simultaneously', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
+    renderComponent();
+    fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
+      target: { value: 'domates' },
+    });
+    fireEvent.click(screen.getByText('Ara'));
+    await screen.findByText('Domates');
+    await screen.findByText('Elma');
+
+    // expand first card (Domates - has stores)
+    fireEvent.click(screen.getByTestId('result-card-1'));
+    expect(screen.getByText('BIM')).toBeInTheDocument();
+
+    // expand second card (Elma - no stores, nothing extra shown)
+    fireEvent.click(screen.getByTestId('result-card-2'));
+
+    // first card still shows BIM (both expanded simultaneously)
+    expect(screen.getByText('BIM')).toBeInTheDocument();
+  });
 });

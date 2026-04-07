@@ -127,13 +127,13 @@ export default function GroceryMarketPrices() {
               data-testid={`result-card-${result.id}`}
             >
               <Group justify='space-between'>
-                <div>
-                  <Text fw={600}>{result.title}</Text>
+                <Text fw={600}>{result.title}</Text>
+                <Group gap='xs'>
                   {result.brand && (
                     <Text size='xs' c='dimmed'>{result.brand}</Text>
                   )}
-                </div>
-                {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                  {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                </Group>
               </Group>
 
               {isExpanded && result.cheapest_stores.length > 0 && (
