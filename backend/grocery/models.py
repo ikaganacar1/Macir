@@ -221,3 +221,19 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f'{self.product.name} x{self.quantity} @ {self.sell_price}'
+
+
+class StoreProfile(models.Model):
+    """Per-user store location for market price proximity searches."""
+
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='store_profile',
+    )
+    latitude = models.FloatField(default=41.0082)   # Istanbul default
+    longitude = models.FloatField(default=28.9784)  # Istanbul default
+    search_radius_km = models.IntegerField(default=50)
+
+    def __str__(self):
+        return f"{self.owner.username} store profile"

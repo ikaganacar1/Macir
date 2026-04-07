@@ -11,7 +11,7 @@ from django.test import TestCase
 from rest_framework import status as drf_status
 from rest_framework.test import APITestCase
 
-from grocery.models import Category, Product, SaleItem, SaleRecord, StockEntry, StockEntryItem
+from grocery.models import Category, Product, SaleItem, SaleRecord, StockEntry, StockEntryItem, StoreProfile
 from grocery.serializers import (
     CategorySerializer,
     ProductSerializer,
@@ -456,3 +456,23 @@ class MarketPriceSearchViewTest(APITestCase):
         self.client.get('/api/market-prices/search/?q=unknown')
         self.client.get('/api/market-prices/search/?q=unknown')
         mock_fetch.assert_called_once()
+
+
+class StoreProfileTest(TestCase):
+    """Tests for StoreProfile model and auto-creation."""
+
+    def test_profile_auto_created_with_user(self):
+        user = User.objects.create_user(username='profiletest', password='pass')
+        self.assertTrue(StoreProfile.objects.filter(owner=user).exists())
+
+    def test_profile_defaults_to_istanbul(self):
+        user = User.objects.create_user(username='istanbul', password='pass')
+        profile = StoreProfile.objects.get(owner=user)
+        self.assertAlmostEqual(profile.latitude, 41.0082, places=3)
+        self.assertAlmostEqual(profile.longitude, 28.9784, places=3)
+        self.assertEqual(profile.search_radius_km, 50)
+
+    def test_profile_str(self):
+        user = User.objects.create_user(username='strtest', password='pass')
+        profile = StoreProfile.objects.get(owner=user)
+        self.assertIn('strtest', str(profile))

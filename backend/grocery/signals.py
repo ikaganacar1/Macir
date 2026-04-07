@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from grocery.models import Category, Product
+from grocery.models import Category, Product, StoreProfile
 
 User = get_user_model()
 
@@ -67,6 +67,7 @@ def seed_defaults(user):
 
 @receiver(post_save, sender=User)
 def on_user_created(sender, instance, created, **kwargs):
-    """Auto-seed default categories and products when a new user is created."""
+    """Auto-seed default categories, products, and store profile when a new user is created."""
     if created:
+        StoreProfile.objects.get_or_create(owner=instance)
         seed_defaults(instance)
