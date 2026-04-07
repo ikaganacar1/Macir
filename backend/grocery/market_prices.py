@@ -6,6 +6,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from grocery.models import StoreProfile
+
 _BASE_URL = "https://api.marketfiyati.org.tr/api/v2/search"
 _HEADERS = {
     "cache-control": "no-cache",
@@ -15,16 +17,29 @@ _HEADERS = {
     ),
 }
 _TIMEOUT = 10
+_DEFAULT_LAT = 41.0082
+_DEFAULT_LNG = 28.9784
+_DEFAULT_RADIUS = 50
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_market_prices(keywords: str) -> list[dict]:
+def fetch_market_prices(
+    keywords: str,
+    latitude: float = _DEFAULT_LAT,
+    longitude: float = _DEFAULT_LNG,
+    radius_km: int = _DEFAULT_RADIUS,
+) -> list[dict]:
     try:
         resp = requests.post(
             _BASE_URL,
             headers=_HEADERS,
-            json={"keywords": keywords},
+            json={
+                "keywords": keywords,
+                "latitude": latitude,
+                "longitude": longitude,
+                "distance": radius_km,
+            },
             timeout=_TIMEOUT,
         )
         resp.raise_for_status()
@@ -62,11 +77,23 @@ def market_price_search(request):
     if not keywords:
         return Response({"results": [], "error": "missing q"}, status=400)
 
-    cache_key = f"market_price:{keywords.lower()}"
+    profile, _ = StoreProfile.objects.get_or_create(
+        owner=request.user,
+        defaults={
+            "latitude": _DEFAULT_LAT,
+            "longitude": _DEFAULT_LNG,
+            "search_radius_km": _DEFAULT_RADIUS,
+        },
+    )
+    lat = profile.latitude
+    lng = profile.longitude
+    radius = profile.search_radius_km
+
+    cache_key = f"market_price:{keywords.lower()}:{lat:.4f}:{lng:.4f}"
     cached = cache.get(cache_key)
     if cached is not None:
         return Response({"results": cached})
 
-    results = fetch_market_prices(keywords)
+    results = fetch_market_prices(keywords, lat, lng, radius)
     cache.set(cache_key, results, timeout=1800)
     return Response({"results": results})

@@ -524,3 +524,38 @@ class ProfileAPITest(APITestCase):
         StoreProfile.objects.filter(owner=other).update(latitude=99.0)
         response = self.client.get('/api/grocery/profile/')
         self.assertNotAlmostEqual(response.json()['latitude'], 99.0, places=1)
+
+
+class MarketPriceLocationTest(APITestCase):
+    """Tests that market price searches use the user's profile location."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='loctest', password='pass')
+        self.client.force_authenticate(user=self.user)
+        from django.core.cache import cache as django_cache
+        django_cache.clear()
+
+    @patch('grocery.market_prices.fetch_market_prices')
+    def test_uses_profile_location(self, mock_fetch):
+        mock_fetch.return_value = []
+        StoreProfile.objects.filter(owner=self.user).update(
+            latitude=38.42, longitude=27.13, search_radius_km=75
+        )
+        self.client.get('/api/market-prices/search/?q=elma')
+        mock_fetch.assert_called_once_with('elma', 38.42, 27.13, 75)
+
+    @patch('grocery.market_prices.fetch_market_prices')
+    def test_different_locations_use_different_cache_keys(self, mock_fetch):
+        mock_fetch.return_value = [{'id': '1', 'title': 'Elma', 'brand': '', 'imageUrl': None, 'cheapest_stores': []}]
+
+        # User A at default location
+        self.client.get('/api/market-prices/search/?q=elma')
+
+        # User B at different location
+        user_b = User.objects.create_user(username='loctest_b', password='pass')
+        StoreProfile.objects.filter(owner=user_b).update(latitude=39.91, longitude=32.86)
+        self.client.force_authenticate(user=user_b)
+        self.client.get('/api/market-prices/search/?q=elma')
+
+        # fetch should have been called twice — cache keys differ
+        self.assertEqual(mock_fetch.call_count, 2)
