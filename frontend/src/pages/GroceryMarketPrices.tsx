@@ -14,12 +14,128 @@ import {
   IconArrowLeft,
   IconChevronDown,
   IconChevronUp,
+  IconSearch,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
-import type { MarketPriceResult } from '../types';
+import type { MarketPriceResult, MarketStore } from '../types';
+import { getMarketLogo, KNOWN_MARKETS } from '../utils/marketLogos';
+
+const POPULAR_PRODUCTS = [
+  { name: 'Domates', emoji: '🍅' },
+  { name: 'Patates', emoji: '🥔' },
+  { name: 'Soğan', emoji: '🧅' },
+  { name: 'Elma', emoji: '🍎' },
+  { name: 'Muz', emoji: '🍌' },
+  { name: 'Biber', emoji: '🫑' },
+  { name: 'Yumurta', emoji: '🥚' },
+  { name: 'Ekmek', emoji: '🍞' },
+];
+
+const DISPLAY_MARKETS = ['bim', 'a101', 'migros', 'carrefour'];
+
+function MarketLogo({ market, size = 20 }: { market: string; size?: number }) {
+  const logo = getMarketLogo(market);
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt={market}
+        style={{ height: size, width: 'auto', maxWidth: size * 2.5, objectFit: 'contain', display: 'block' }}
+      />
+    );
+  }
+  return <Text size='xs' fw={600}>{market.toUpperCase()}</Text>;
+}
+
+function getPriceForMarket(results: MarketPriceResult[], market: string): number | null {
+  for (const result of results) {
+    const store = result.cheapest_stores.find(
+      (s) => s.market.toLowerCase() === market.toLowerCase()
+    );
+    if (store) return store.price;
+  }
+  return null;
+}
+
+function PopularProductCard({ name, emoji }: { name: string; emoji: string }) {
+  const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
+    queryKey: ['market-prices', name.toLowerCase()],
+    queryFn: () =>
+      api.get(endpoints.marketPrices, { params: { q: name } }).then((r) => r.data),
+    staleTime: 30 * 60 * 1000,
+  });
+
+  const results = data?.results ?? [];
+
+  return (
+    <Paper withBorder p='sm' style={{ border: '1px solid #e8f5e9' }}>
+      <Group gap='xs' mb='xs'>
+        <Text style={{ fontSize: 20 }}>{emoji}</Text>
+        <Text fw={600} size='sm'>{name}</Text>
+      </Group>
+      {isLoading ? (
+        <Stack gap={4}>
+          <Skeleton height={18} radius='sm' />
+          <Skeleton height={18} radius='sm' />
+        </Stack>
+      ) : results.length === 0 ? (
+        <Text size='xs' c='dimmed'>Veri bulunamadı</Text>
+      ) : (
+        <Stack gap={4}>
+          {DISPLAY_MARKETS.map((market) => {
+            const price = getPriceForMarket(results, market);
+            if (price === null) return null;
+            return (
+              <Group key={market} justify='space-between' align='center'>
+                <MarketLogo market={market} size={16} />
+                <Text size='xs' fw={500}>₺{price.toFixed(2)}</Text>
+              </Group>
+            );
+          })}
+        </Stack>
+      )}
+    </Paper>
+  );
+}
+
+function WelcomeScreen() {
+  return (
+    <Stack gap='md' px='md' pt='xs' pb='xl'>
+      {/* Hero */}
+      <Box
+        p='md'
+        style={{
+          background: 'linear-gradient(135deg, #f1f8f4 0%, #e8f5e9 100%)',
+          borderRadius: 12,
+          border: '1px solid #c8e6c9',
+        }}
+      >
+        <Text fw={700} size='lg' c='green.8'>Piyasa Fiyatları</Text>
+        <Text size='sm' c='dimmed' mt={4}>
+          Türkiye'nin büyük marketlerinden anlık fiyat karşılaştırması
+        </Text>
+        <Group gap='sm' mt='sm'>
+          {DISPLAY_MARKETS.map((market) => (
+            <MarketLogo key={market} market={market} size={22} />
+          ))}
+        </Group>
+      </Box>
+
+      {/* Popular products grid */}
+      <Text size='xs' fw={600} c='dimmed' tt='uppercase' style={{ letterSpacing: '0.05em' }}>
+        Güncel Fiyatlar
+      </Text>
+      <SimpleGrid cols={2} spacing='sm'>
+        {POPULAR_PRODUCTS.map((p) => (
+          <PopularProductCard key={p.name} name={p.name} emoji={p.emoji} />
+        ))}
+      </SimpleGrid>
+    </Stack>
+  );
+}
 
 export default function GroceryMarketPrices() {
   const navigate = useNavigate();
@@ -77,85 +193,81 @@ export default function GroceryMarketPrices() {
           </Button>
           <Title order={5}>Piyasa Fiyatları</Title>
         </Group>
-      </Box>
-
-      <Stack p='md' gap='sm'>
-        {/* Search bar */}
-        <Group gap='xs'>
+        {/* Search bar inside header */}
+        <Group gap='xs' mt='xs'>
           <TextInput
             flex={1}
+            size='sm'
             placeholder='Ürün adı yazın...'
+            leftSection={<IconSearch size={14} />}
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
           />
-          <Button color='green' onClick={submit}>
+          <Button size='sm' color='green' onClick={submit}>
             Ara
           </Button>
         </Group>
+      </Box>
 
-        {/* States */}
-        {!submittedQuery && (
-          <Text c='dimmed' ta='center' mt='xl'>
-            Bir ürün adı yazın ve fiyatları karşılaştırın
-          </Text>
-        )}
+      {/* Content */}
+      {!submittedQuery ? (
+        <WelcomeScreen />
+      ) : (
+        <Stack p='md' gap='sm'>
+          {isLoading && (
+            <>
+              <Skeleton height={56} radius='md' />
+              <Skeleton height={56} radius='md' />
+              <Skeleton height={56} radius='md' />
+            </>
+          )}
 
-        {isLoading && (
-          <>
-            <Skeleton height={56} radius='md' />
-            <Skeleton height={56} radius='md' />
-            <Skeleton height={56} radius='md' />
-          </>
-        )}
+          {!isLoading && results.length === 0 && (
+            <Text c='dimmed' ta='center' mt='xl'>
+              Sonuç bulunamadı
+            </Text>
+          )}
 
-        {!isLoading && submittedQuery && results.length === 0 && (
-          <Text c='dimmed' ta='center' mt='xl'>
-            Sonuç bulunamadı
-          </Text>
-        )}
-
-        {!isLoading && results.map((result) => {
-          const isExpanded = expanded.has(result.id);
-          return (
-            <Paper
-              key={result.id}
-              withBorder
-              p='sm'
-              style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
-              onClick={() => toggleExpand(result.id)}
-              data-testid={`result-card-${result.id}`}
-            >
-              <Group justify='space-between'>
-                <Text fw={600}>{result.title}</Text>
-                <Group gap='xs'>
-                  {result.brand && (
-                    <Text size='xs' c='dimmed'>{result.brand}</Text>
-                  )}
-                  {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+          {!isLoading && results.map((result) => {
+            const isExpanded = expanded.has(result.id);
+            return (
+              <Paper
+                key={result.id}
+                withBorder
+                p='sm'
+                style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+                onClick={() => toggleExpand(result.id)}
+                data-testid={`result-card-${result.id}`}
+              >
+                <Group justify='space-between'>
+                  <Text fw={600} size='sm'>{result.title}</Text>
+                  <Group gap='xs'>
+                    {result.brand && (
+                      <Text size='xs' c='dimmed'>{result.brand}</Text>
+                    )}
+                    {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                  </Group>
                 </Group>
-              </Group>
 
-              {isExpanded && result.cheapest_stores.length > 0 && (
-                <Stack gap={4} mt='xs'>
-                  <SimpleGrid cols={3} spacing='xs'>
-                    <Text size='xs' fw={600} c='dimmed'>Market</Text>
-                    <Text size='xs' fw={600} c='dimmed'>Fiyat</Text>
-                    <Text size='xs' fw={600} c='dimmed'>Birim Fiyat</Text>
-                  </SimpleGrid>
-                  {result.cheapest_stores.map((store, idx) => (
-                    <SimpleGrid key={idx} cols={3} spacing='xs'>
-                      <Text size='xs'>{store.market}</Text>
-                      <Text size='xs'>{store.price.toFixed(2)}</Text>
-                      <Text size='xs' c='dimmed'>{store.unitPrice}</Text>
-                    </SimpleGrid>
-                  ))}
-                </Stack>
-              )}
-            </Paper>
-          );
-        })}
-      </Stack>
+                {isExpanded && result.cheapest_stores.length > 0 && (
+                  <Stack gap={6} mt='xs' pt='xs' style={{ borderTop: '1px solid #f0f0f0' }}>
+                    {result.cheapest_stores.map((store: MarketStore, idx: number) => (
+                      <Group key={idx} justify='space-between' align='center'>
+                        <MarketLogo market={store.market} size={18} />
+                        <Group gap='xs'>
+                          <Text size='sm' fw={600}>₺{store.price.toFixed(2)}</Text>
+                          <Text size='xs' c='dimmed'>{store.unitPrice}</Text>
+                        </Group>
+                      </Group>
+                    ))}
+                  </Stack>
+                )}
+              </Paper>
+            );
+          })}
+        </Stack>
+      )}
     </Box>
   );
 }

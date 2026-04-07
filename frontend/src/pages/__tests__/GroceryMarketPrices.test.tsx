@@ -20,6 +20,12 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// marketLogos util uses real file paths — mock it so jsdom doesn't need assets
+vi.mock('../../utils/marketLogos', () => ({
+  getMarketLogo: (market: string) => `/market-logos/${market.toLowerCase()}.png`,
+  KNOWN_MARKETS: ['bim', 'a101', 'migros', 'carrefour'],
+}));
+
 import { api } from '../../api';
 import GroceryMarketPrices from '../GroceryMarketPrices';
 
@@ -30,8 +36,8 @@ const mockResults = [
     brand: 'BrandA',
     imageUrl: null,
     cheapest_stores: [
-      { market: 'BIM', price: 18.5, unitPrice: '18,50 TL/kg' },
-      { market: 'A101', price: 20.0, unitPrice: '20,00 TL/kg' },
+      { market: 'bim', price: 18.5, unitPrice: '18,50 TL/kg' },
+      { market: 'a101', price: 20.0, unitPrice: '20,00 TL/kg' },
     ],
   },
   {
@@ -42,6 +48,9 @@ const mockResults = [
     cheapest_stores: [],
   },
 ];
+
+// Empty response for popular product background queries
+const emptyResponse = { data: { results: [] } };
 
 function renderComponent() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -60,18 +69,32 @@ function renderComponent() {
 describe('GroceryMarketPrices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: popular product background queries return empty
+    vi.mocked(api.get).mockResolvedValue(emptyResponse);
   });
 
-  it('renders initial helper text when no search submitted', () => {
+  it('renders welcome screen with hero and product cards when no search', async () => {
     renderComponent();
-    expect(screen.getByText('Bir ürün adı yazın ve fiyatları karşılaştırın')).toBeInTheDocument();
+    // "Piyasa Fiyatları" appears in both header and hero — at least 2 occurrences
+    expect(screen.getAllByText('Piyasa Fiyatları').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/anlık fiyat karşılaştırması/)).toBeInTheDocument();
+    expect(screen.getByText('Güncel Fiyatlar')).toBeInTheDocument();
+    // Popular product names appear in cards
+    expect(screen.getByText('Patates')).toBeInTheDocument();
   });
 
-  it('shows skeleton while loading', async () => {
-    vi.mocked(api.get).mockReturnValue(new Promise(() => {})); // never resolves
+  it('shows skeleton while loading search results', async () => {
+    vi.mocked(api.get).mockImplementation((url, config) => {
+      // Popular product queries resolve immediately; search query hangs
+      if ((config as any)?.params?.q && !['domates','patates','soğan','elma','muz','biber','yumurta','ekmek'].includes((config as any).params.q.toLowerCase())) {
+        return new Promise(() => {}); // never resolves (search)
+      }
+      return Promise.resolve(emptyResponse);
+    });
     renderComponent();
-    const input = screen.getByPlaceholderText('Ürün adı yazın...');
-    fireEvent.change(input, { target: { value: 'domates' } });
+    fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
+      target: { value: 'xyz123' },
+    });
     fireEvent.click(screen.getByText('Ara'));
     await waitFor(() => {
       expect(document.querySelector('.mantine-Skeleton-root')).toBeInTheDocument();
@@ -85,9 +108,10 @@ describe('GroceryMarketPrices', () => {
       target: { value: 'domates' },
     });
     fireEvent.click(screen.getByText('Ara'));
+    // After search, welcome screen is replaced by result cards
     await waitFor(() => {
-      expect(screen.getByText('Domates')).toBeInTheDocument();
-      expect(screen.getByText('Elma')).toBeInTheDocument();
+      expect(screen.getByTestId('result-card-1')).toBeInTheDocument();
+      expect(screen.getByTestId('result-card-2')).toBeInTheDocument();
     });
   });
 
@@ -103,22 +127,25 @@ describe('GroceryMarketPrices', () => {
     });
   });
 
-  it('expands card on click to show store prices', async () => {
+  it('expands card on click to show store prices with logos', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { results: mockResults } });
     renderComponent();
     fireEvent.change(screen.getByPlaceholderText('Ürün adı yazın...'), {
       target: { value: 'domates' },
     });
     fireEvent.click(screen.getByText('Ara'));
-    await screen.findByText('Domates');
+    await screen.findByTestId('result-card-1');
 
-    // BIM price not visible initially
-    expect(screen.queryByText('BIM')).not.toBeInTheDocument();
+    // Store prices not visible initially
+    expect(screen.queryByAltText('bim')).not.toBeInTheDocument();
 
-    // click to expand
+    // Click to expand
     fireEvent.click(screen.getByTestId('result-card-1'));
-    expect(screen.getByText('BIM')).toBeInTheDocument();
-    expect(screen.getByText('18.50')).toBeInTheDocument();
+
+    // Logo shown as img with alt matching market name
+    expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
+    // Price shown
+    expect(screen.getByText('₺18.50')).toBeInTheDocument();
   });
 
   it('back button calls navigate(-1)', () => {
@@ -134,7 +161,7 @@ describe('GroceryMarketPrices', () => {
     fireEvent.change(input, { target: { value: 'domates' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
     await waitFor(() => {
-      expect(screen.getByText('Domates')).toBeInTheDocument();
+      expect(screen.getByTestId('result-card-1')).toBeInTheDocument();
     });
   });
 
@@ -145,17 +172,17 @@ describe('GroceryMarketPrices', () => {
       target: { value: 'domates' },
     });
     fireEvent.click(screen.getByText('Ara'));
-    await screen.findByText('Domates');
-    await screen.findByText('Elma');
+    await screen.findByTestId('result-card-1');
+    await screen.findByTestId('result-card-2');
 
-    // expand first card (Domates - has stores)
+    // Expand first card (has stores)
     fireEvent.click(screen.getByTestId('result-card-1'));
-    expect(screen.getByText('BIM')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
 
-    // expand second card (Elma - no stores, nothing extra shown)
+    // Expand second card (no stores — nothing extra added)
     fireEvent.click(screen.getByTestId('result-card-2'));
 
-    // first card still shows BIM (both expanded simultaneously)
-    expect(screen.getByText('BIM')).toBeInTheDocument();
+    // First card's content still visible
+    expect(screen.getByRole('img', { name: 'bim' })).toBeInTheDocument();
   });
 });

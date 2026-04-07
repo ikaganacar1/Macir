@@ -24,6 +24,11 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+vi.mock('../../utils/marketLogos', () => ({
+  getMarketLogo: (market: string) => `/market-logos/${market.toLowerCase()}.png`,
+  KNOWN_MARKETS: ['bim', 'a101', 'migros', 'carrefour'],
+}));
+
 import { api } from '../../api';
 import GroceryProducts from '../GroceryProducts';
 
@@ -253,7 +258,9 @@ describe('GroceryProducts', () => {
     await waitFor(() => {
       expect(screen.getByTestId('market-price-1')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('market-price-1')).toHaveTextContent('BIM');
-    expect(screen.getByTestId('market-price-1')).toHaveTextContent('18.50');
+    // Logo rendered as img inside the indicator — scope to the testid element
+    const indicator = screen.getByTestId('market-price-1');
+    expect(indicator.querySelector('img[alt="BIM"]')).toBeInTheDocument();
+    expect(indicator).toHaveTextContent('18.50');
   });
 });

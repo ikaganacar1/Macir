@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { api, endpoints } from '../api';
 import type { MarketPriceResult, Category, Product } from '../types';
+import { getMarketLogo } from '../utils/marketLogos';
 
 interface Preset {
   name: string;
@@ -135,10 +136,17 @@ function MarketPriceIndicator({ productName, productPk }: { productName: string;
   const cheapest = data?.results?.[0]?.cheapest_stores?.[0];
   if (!cheapest) return null;
 
+  const logo = getMarketLogo(cheapest.market);
+
   return (
-    <Text size='xs' c='dimmed' data-testid={`market-price-${productPk}`}>
-      📍 {cheapest.market.toUpperCase()} ₺{cheapest.price.toFixed(2)}
-    </Text>
+    <Group gap={4} align='center' mt={2} data-testid={`market-price-${productPk}`}>
+      {logo ? (
+        <img src={logo} alt={cheapest.market} style={{ height: 14, width: 'auto', objectFit: 'contain', display: 'block' }} />
+      ) : (
+        <Text size='xs' c='dimmed'>{cheapest.market.toUpperCase()}</Text>
+      )}
+      <Text size='xs' c='dimmed'>₺{cheapest.price.toFixed(2)}</Text>
+    </Group>
   );
 }
 
