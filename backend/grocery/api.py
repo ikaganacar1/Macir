@@ -21,12 +21,14 @@ from grocery.models import (
     SaleRecord,
     StockEntry,
     StockEntryItem,
+    StoreProfile,
 )
 from grocery.serializers import (
     CategorySerializer,
     ProductSerializer,
     SaleRecordSerializer,
     StockEntrySerializer,
+    StoreProfileSerializer,
 )
 
 
@@ -308,6 +310,25 @@ class DashboardView(APIView):
         })
 
 
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_or_create_profile(self, user):
+        profile, _ = StoreProfile.objects.get_or_create(owner=user)
+        return profile
+
+    def get(self, request):
+        profile = self._get_or_create_profile(request.user)
+        return Response(StoreProfileSerializer(profile).data)
+
+    def patch(self, request):
+        profile = self._get_or_create_profile(request.user)
+        serializer = StoreProfileSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
 grocery_api_urls = [
     path('categories/', CategoryList.as_view(), name='api-grocery-category-list'),
     path('categories/<int:pk>/', CategoryDetail.as_view(), name='api-grocery-category-detail'),
@@ -318,4 +339,5 @@ grocery_api_urls = [
     path('sale-records/', SaleRecordList.as_view(), name='api-grocery-sale-record-list'),
     path('sale-records/<int:pk>/', SaleRecordDetail.as_view(), name='api-grocery-sale-record-detail'),
     path('dashboard/', DashboardView.as_view(), name='api-grocery-dashboard'),
+    path('profile/', ProfileView.as_view(), name='api-grocery-profile'),
 ]

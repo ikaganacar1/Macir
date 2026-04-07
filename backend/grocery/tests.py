@@ -476,3 +476,51 @@ class StoreProfileTest(TestCase):
         user = User.objects.create_user(username='strtest', password='pass')
         profile = StoreProfile.objects.get(owner=user)
         self.assertIn('strtest', str(profile))
+
+
+class ProfileAPITest(APITestCase):
+    """Tests for GET/PATCH /api/grocery/profile/."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='profapi', password='pass')
+        self.client.force_authenticate(user=self.user)
+
+    def test_get_profile_returns_defaults(self):
+        response = self.client.get('/api/grocery/profile/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertAlmostEqual(data['latitude'], 41.0082, places=3)
+        self.assertAlmostEqual(data['longitude'], 28.9784, places=3)
+        self.assertEqual(data['search_radius_km'], 50)
+
+    def test_patch_profile_updates_location(self):
+        response = self.client.patch('/api/grocery/profile/', {
+            'latitude': 38.4189,
+            'longitude': 27.1287,
+            'search_radius_km': 100,
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertAlmostEqual(data['latitude'], 38.4189, places=3)
+        self.assertAlmostEqual(data['longitude'], 27.1287, places=3)
+        self.assertEqual(data['search_radius_km'], 100)
+
+    def test_patch_profile_persists(self):
+        self.client.patch('/api/grocery/profile/', {
+            'latitude': 39.9179,
+            'longitude': 32.8614,
+            'search_radius_km': 25,
+        }, format='json')
+        response = self.client.get('/api/grocery/profile/')
+        self.assertAlmostEqual(response.json()['latitude'], 39.9179, places=3)
+
+    def test_unauthenticated_returns_401(self):
+        self.client.logout()
+        response = self.client.get('/api/grocery/profile/')
+        self.assertIn(response.status_code, (401, 403))
+
+    def test_users_cannot_access_each_others_profiles(self):
+        other = User.objects.create_user(username='other_prof', password='pass')
+        StoreProfile.objects.filter(owner=other).update(latitude=99.0)
+        response = self.client.get('/api/grocery/profile/')
+        self.assertNotAlmostEqual(response.json()['latitude'], 99.0, places=1)

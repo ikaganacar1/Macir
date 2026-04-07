@@ -14,6 +14,7 @@ from grocery.models import (
     SaleRecord,
     StockEntry,
     StockEntryItem,
+    StoreProfile,
 )
 
 
@@ -170,3 +171,9 @@ class SaleRecordSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('items', None)  # items are immutable after creation
         return super().update(instance, validated_data)
+
+
+class StoreProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreProfile
+        fields = ['latitude', 'longitude', 'search_radius_km']
