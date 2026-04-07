@@ -12,8 +12,11 @@ vi.mock('../../api', () => ({
   endpoints: {
     marketPrices: '/api/market-prices/search/',
     products: '/api/grocery/products/',
+    profile: '/api/grocery/profile/',
   },
 }));
+
+const mockProfile = { latitude: 41.0082, longitude: 28.9784, search_radius_km: 5 };
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -75,6 +78,7 @@ describe('GroceryMarketPrices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve(emptyResponse);
     });
@@ -92,6 +96,7 @@ describe('GroceryMarketPrices', () => {
 
   it('shows user products when they have products in Ürünler', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve({ data: mockProducts });
       return Promise.resolve(emptyResponse);
     });
@@ -105,6 +110,7 @@ describe('GroceryMarketPrices', () => {
 
   it('shows skeleton while loading search results', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       if (url.includes('market-prices') && url.includes('xyz123')) {
         return new Promise(() => {}); // never resolves
@@ -123,6 +129,7 @@ describe('GroceryMarketPrices', () => {
 
   it('renders results after search', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve({ data: { results: mockResults } });
     });
@@ -139,6 +146,7 @@ describe('GroceryMarketPrices', () => {
 
   it('shows "Sonuç bulunamadı" on empty results', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve({ data: { results: [] } });
     });
@@ -154,6 +162,7 @@ describe('GroceryMarketPrices', () => {
 
   it('expands card on click to show store prices with logos', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve({ data: { results: mockResults } });
     });
@@ -179,6 +188,7 @@ describe('GroceryMarketPrices', () => {
 
   it('triggers search on Enter key', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve({ data: { results: mockResults } });
     });
@@ -193,6 +203,7 @@ describe('GroceryMarketPrices', () => {
 
   it('multiple cards can be expanded simultaneously', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: mockProfile });
       if (url.includes('products')) return Promise.resolve(emptyProducts);
       return Promise.resolve({ data: { results: mockResults } });
     });

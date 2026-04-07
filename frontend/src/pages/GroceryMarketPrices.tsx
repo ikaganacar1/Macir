@@ -14,13 +14,14 @@ import {
   IconArrowLeft,
   IconChevronDown,
   IconChevronUp,
+  IconMapPin,
   IconSearch,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
-import type { MarketPriceResult, MarketStore, Product } from '../types';
+import type { MarketPriceResult, MarketStore, Product, StoreProfile } from '../types';
 import { getMarketLogo } from '../utils/marketLogos';
 
 const DEFAULT_PRODUCTS = [
@@ -54,9 +55,9 @@ function getPriceForMarket(results: MarketPriceResult[], market: string): number
   return null;
 }
 
-function ProductPriceCard({ name }: { name: string }) {
+function ProductPriceCard({ name, lat, lng }: { name: string; lat: number; lng: number }) {
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-prices', name.toLowerCase()],
+    queryKey: ['market-prices', name.toLowerCase(), lat, lng],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: name } }).then((r) => r.data),
     staleTime: 30 * 60 * 1000,
@@ -93,7 +94,7 @@ function ProductPriceCard({ name }: { name: string }) {
   );
 }
 
-function WelcomeScreen({ products }: { products: Product[] }) {
+function WelcomeScreen({ products, lat, lng, radius }: { products: Product[]; lat: number; lng: number; radius: number }) {
   const activeNames = products
     .filter((p) => p.is_active)
     .map((p) => p.name);
@@ -120,6 +121,12 @@ function WelcomeScreen({ products }: { products: Product[] }) {
             <MarketLogo key={market} market={market} size={22} />
           ))}
         </Group>
+        <Group gap={4} mt='xs' align='center'>
+          <IconMapPin size={12} color='gray' />
+          <Text size='xs' c='dimmed' data-testid='location-indicator'>
+            {lat.toFixed(4)}, {lng.toFixed(4)} · {radius} km
+          </Text>
+        </Group>
       </Box>
 
       {/* Product price grid */}
@@ -128,7 +135,7 @@ function WelcomeScreen({ products }: { products: Product[] }) {
       </Text>
       <SimpleGrid cols={2} spacing='sm'>
         {displayNames.map((name) => (
-          <ProductPriceCard key={name} name={name} />
+          <ProductPriceCard key={name} name={name} lat={lat} lng={lng} />
         ))}
       </SimpleGrid>
     </Stack>
@@ -141,6 +148,15 @@ export default function GroceryMarketPrices() {
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const { data: profile } = useQuery<StoreProfile>({
+    queryKey: ['store-profile'],
+    queryFn: () => api.get(endpoints.profile).then((r) => r.data),
+  });
+
+  const lat = profile?.latitude ?? 41.0082;
+  const lng = profile?.longitude ?? 28.9784;
+  const radius = profile?.search_radius_km ?? 5;
+
   const { data: productsData } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: () => api.get(endpoints.products).then((r) => r.data),
@@ -148,7 +164,7 @@ export default function GroceryMarketPrices() {
   });
 
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-prices', submittedQuery],
+    queryKey: ['market-prices', submittedQuery, lat, lng],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: submittedQuery } }).then((r) => r.data),
     enabled: !!submittedQuery,
@@ -215,7 +231,7 @@ export default function GroceryMarketPrices() {
 
       {/* Content */}
       {!submittedQuery ? (
-        <WelcomeScreen products={productsData ?? []} />
+        <WelcomeScreen products={productsData ?? []} lat={lat} lng={lng} radius={radius} />
       ) : (
         <Stack p='md' gap='sm'>
           {isLoading && (
