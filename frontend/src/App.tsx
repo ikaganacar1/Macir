@@ -16,6 +16,7 @@ const GroceryProducts = lazy(() => import('./pages/GroceryProducts'));
 const GroceryAddStock = lazy(() => import('./pages/GroceryAddStock'));
 const GroceryRecordSales = lazy(() => import('./pages/GroceryRecordSales'));
 const GrocerySalesHistory = lazy(() => import('./pages/GrocerySalesHistory'));
+const GroceryMarketPrices = lazy(() => import('./pages/GroceryMarketPrices'));
 
 const qc = new QueryClient();
 
@@ -61,6 +62,7 @@ export default function App() {
               <Route path='/stock/new' element={<GroceryAddStock />} />
               <Route path='/sales/new' element={<GroceryRecordSales />} />
               <Route path='/sales/history' element={<GrocerySalesHistory />} />
+              <Route path='/market-prices' element={<GroceryMarketPrices />} />
               <Route path='*' element={<div style={{ padding: '2rem', textAlign: 'center' }}>Sayfa bulunamadı.</div>} />
             </Routes>
           </Suspense>
