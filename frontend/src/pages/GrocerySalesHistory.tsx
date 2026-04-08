@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { SaleRecord } from '../types';
+import { recordTotal, trFullDate } from '../utils/sales';
 
 type DateRange = 'all' | 'today' | 'week' | 'month';
 
@@ -45,23 +46,6 @@ function getMonday(): string {
 function getFirstOfMonth(): string {
   const todayStr = getLocalDate();
   return todayStr.substring(0, 8) + '01';
-}
-
-function recordTotal(record: SaleRecord): string {
-  const total = record.items.reduce(
-    (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
-    0
-  );
-  return total.toFixed(2);
-}
-
-function trFullDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 }
 
 function applyFilters(

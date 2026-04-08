@@ -15,6 +15,7 @@ vi.mock('../../api', () => ({
     products: '/api/grocery/products/',
     categories: '/api/grocery/categories/',
     marketPrices: '/api/market-prices/search/',
+    profile: '/api/grocery/profile/',
   },
 }));
 
@@ -91,6 +92,7 @@ describe('GroceryProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: { latitude: 41.0082, longitude: 28.9784, search_radius_km: 5 } });
       if (url.includes('categories')) return Promise.resolve({ data: mockCategories });
       return Promise.resolve({ data: mockProducts });
     });
@@ -223,6 +225,7 @@ describe('GroceryProducts', () => {
 
   it('shows cheapest market price indicator on product card', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('profile')) return Promise.resolve({ data: { latitude: 41.0082, longitude: 28.9784, search_radius_km: 5 } });
       if (url.includes('categories')) return Promise.resolve({ data: mockCategories });
       if (url.includes('market-prices')) return Promise.resolve({
         data: {

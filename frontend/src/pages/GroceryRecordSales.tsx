@@ -127,7 +127,7 @@ export default function GroceryRecordSales() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
       return api.post(endpoints.saleRecords, {
         date: today,
         notes: '',

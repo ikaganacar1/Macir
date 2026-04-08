@@ -23,7 +23,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, endpoints } from '../api';
-import type { MarketPriceResult, Category, Product } from '../types';
+import type { MarketPriceResult, Category, Product, StoreProfile } from '../types';
 import { getMarketLogo } from '../utils/marketLogos';
 
 interface Preset {
@@ -125,9 +125,9 @@ const PRESET_PRODUCTS: Preset[] = [
   { name: 'Kuru Erik', emoji: '🟣', unit: 'kg', category: 'Diğer' },
 ];
 
-function MarketPriceIndicator({ productName, productPk }: { productName: string; productPk: number }) {
+function MarketPriceIndicator({ productName, productPk, lat, lng }: { productName: string; productPk: number; lat: number; lng: number }) {
   const { data } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-price', productName],
+    queryKey: ['market-prices', productName, lat, lng],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: productName } }).then((r) => r.data),
     staleTime: 30 * 60 * 1000,
@@ -158,6 +158,14 @@ export default function GroceryProducts() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [iconFile, setIconFile] = useState<File | null>(null);
+
+  const { data: profile } = useQuery<StoreProfile>({
+    queryKey: ['store-profile'],
+    queryFn: () => api.get(endpoints.profile).then((r) => r.data),
+  });
+
+  const profileLat = profile?.latitude ?? 41.0082;
+  const profileLng = profile?.longitude ?? 28.9784;
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products-all'],
@@ -311,7 +319,7 @@ export default function GroceryProducts() {
                 <Text size='xs' c='dimmed'>
                   {product.category_name} · ₺{product.sell_price}/{product.unit}
                 </Text>
-                <MarketPriceIndicator productName={product.name} productPk={product.pk} />
+                <MarketPriceIndicator productName={product.name} productPk={product.pk} lat={profileLat} lng={profileLng} />
               </div>
               <Button
                 variant='subtle'

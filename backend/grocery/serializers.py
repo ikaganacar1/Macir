@@ -61,6 +61,12 @@ class ProductSerializer(serializers.ModelSerializer):
             return obj._most_recent_purchase_price
         return obj.most_recent_purchase_price
 
+    def validate_svg_icon(self, value):
+        allowed = {'image/svg+xml', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+        if value and hasattr(value, 'content_type') and value.content_type not in allowed:
+            raise serializers.ValidationError('Desteklenmeyen dosya türü.')
+        return value
+
 
 class StockEntryItemSerializer(serializers.ModelSerializer):
     """Serializer for StockEntryItem."""
@@ -89,9 +95,14 @@ class StockEntrySerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def validate_items(self, value):
-        """Require at least one item per stock entry."""
+        """Require at least one item per stock entry. Reject products not owned by the user."""
         if not value:
             raise serializers.ValidationError('At least one item is required.')
+        request = self.context.get('request')
+        if request:
+            for item in value:
+                if item['product'].owner != request.user:
+                    raise serializers.ValidationError('Geçersiz ürün.')
         return value
 
     def create(self, validated_data):
@@ -133,22 +144,30 @@ class SaleRecordSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def validate_items(self, value):
-        """Require at least one item per sale record."""
+        """Require at least one item per sale record. Reject products not owned by the user."""
         if not value:
             raise serializers.ValidationError('At least one item is required.')
+        request = self.context.get('request')
+        if request:
+            for item in value:
+                if item['product'].owner != request.user:
+                    raise serializers.ValidationError('Geçersiz ürün.')
         return value
 
     def validate(self, data):
         """Check that no item would cause negative stock."""
+        request = self.context.get('request')
         items = data.get('items', [])
         errors = []
         for item in items:
             product = item['product']
             qty = item['quantity']
-            received = StockEntryItem.objects.filter(product=product).aggregate(
+            owner_filter = {'entry__owner': request.user} if request else {}
+            received = StockEntryItem.objects.filter(product=product, **owner_filter).aggregate(
                 total=Sum('quantity')
             )['total'] or Decimal('0')
-            sold = SaleItem.objects.filter(product=product).aggregate(
+            sale_owner_filter = {'sale__owner': request.user} if request else {}
+            sold = SaleItem.objects.filter(product=product, **sale_owner_filter).aggregate(
                 total=Sum('quantity')
             )['total'] or Decimal('0')
             available = received - sold

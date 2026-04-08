@@ -23,27 +23,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { DashboardData, SaleRecord } from '../types';
-
-function recordTotal(record: SaleRecord): string {
-  const total = record.items.reduce(
-    (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
-    0
-  );
-  return total.toFixed(2);
-}
-
-function trFullDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
+import { recordTotal, trFullDate } from '../utils/sales';
 
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
 
   const { data: stats } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard-today', today],

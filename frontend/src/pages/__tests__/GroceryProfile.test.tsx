@@ -57,7 +57,7 @@ vi.mock('react-router-dom', async () => {
 import { api } from '../../api';
 import GroceryProfile from '../GroceryProfile';
 
-const mockProfile = { latitude: 41.0082, longitude: 28.9784, search_radius_km: 50 };
+const mockProfile = { latitude: 41.0082, longitude: 28.9784, search_radius_km: 5 };
 
 function renderComponent() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -235,5 +235,9 @@ class StoreProfile(models.Model):
     longitude = models.FloatField(default=28.9784)  # Istanbul default
     search_radius_km = models.IntegerField(default=5)
 
+    class Meta:
+        verbose_name = 'Mağaza Profili'
+        verbose_name_plural = 'Mağaza Profilleri'
+
     def __str__(self):
         return f"{self.owner.username} store profile"

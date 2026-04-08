@@ -37,7 +37,7 @@ function trDate(dateStr: string): string {
 export default function GroceryDashboard() {
   const navigate = useNavigate();
   const [range, setRange] = useState<'today' | 'week' | 'month'>('week');
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
 
   const { data } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard', range, today],

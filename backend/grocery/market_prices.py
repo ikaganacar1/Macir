@@ -90,7 +90,7 @@ def market_price_search(request):
     lng = profile.longitude
     radius = min(profile.search_radius_km, _MAX_RADIUS)
 
-    cache_key = f"market_price:{keywords.lower()}:{lat:.4f}:{lng:.4f}"
+    cache_key = f"market_price:{keywords.lower()}:{lat:.4f}:{lng:.4f}:{radius}"
     cached = cache.get(cache_key)
     if cached is not None:
         return Response({"results": cached})

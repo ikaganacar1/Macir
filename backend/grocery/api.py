@@ -122,7 +122,7 @@ class StockEntryList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return StockEntry.objects.filter(owner=self.request.user)
+        return StockEntry.objects.filter(owner=self.request.user).prefetch_related('items__product')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -133,7 +133,7 @@ class StockEntryDetail(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return StockEntry.objects.filter(owner=self.request.user)
+        return StockEntry.objects.filter(owner=self.request.user).prefetch_related('items__product')
 
 
 class SaleRecordList(generics.ListCreateAPIView):
@@ -141,7 +141,7 @@ class SaleRecordList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return SaleRecord.objects.filter(owner=self.request.user).order_by('-date', '-pk')
+        return SaleRecord.objects.filter(owner=self.request.user).order_by('-date', '-pk').prefetch_related('items__product')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -152,7 +152,7 @@ class SaleRecordDetail(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return SaleRecord.objects.filter(owner=self.request.user)
+        return SaleRecord.objects.filter(owner=self.request.user).prefetch_related('items__product')
 
 
 def _compute_stock_levels(user, active_only=True):

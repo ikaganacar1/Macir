@@ -37,7 +37,7 @@ export default function GroceryAddStock() {
   const [modalValue, setModalValue] = useState('0');
   const [opened, { open, close }] = useDisclosure(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products'],
