@@ -123,6 +123,9 @@ CSRF_COOKIE_SECURE = _https_enabled
 SECURE_SSL_REDIRECT = _https_enabled
 SECURE_HSTS_SECONDS = 31536000 if _https_enabled else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _https_enabled
+# Cloudflare (and any TLS-terminating proxy) sends this header — trust it so
+# Django knows the original request was HTTPS and doesn't loop on SSL redirect.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if _https_enabled else None
 
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',  # must be first
