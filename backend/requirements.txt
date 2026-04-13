@@ -4,3 +4,4 @@ django-cors-headers>=4.3
 gunicorn>=22
 requests>=2.31
 django-axes>=7.0,<8
+whitenoise>=6.0,<7
