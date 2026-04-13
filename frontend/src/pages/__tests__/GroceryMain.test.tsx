@@ -15,6 +15,8 @@ vi.mock('../../api', () => ({
     saleRecords: '/api/grocery/sale-records/',
     marketPrices: '/api/market-prices/search/',
     profile: '/api/grocery/profile/',
+    finance: '/api/grocery/finance/',
+    debts: '/api/grocery/debts/',
   },
 }));
 
@@ -50,6 +52,9 @@ const mockStats = {
   total_sales: 150.50,
   net_profit: 45.00,
   low_stock: [],
+  monthly_expenses: 3000.00,
+  monthly_income_extra: 0,
+  total_debt_remaining: 44000.00,
 };
 
 const mockStatsWithLowStock = {
@@ -185,6 +190,21 @@ describe('GroceryMain', () => {
     const btn = await screen.findByTestId('btn-market-prices');
     fireEvent.click(btn);
     expect(mockNavigate).toHaveBeenCalledWith('/market-prices');
+  });
+
+  it('shows finance summary cards', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByTestId('stat-monthly-expenses')).toBeInTheDocument();
+      expect(screen.getByTestId('stat-debt-remaining')).toBeInTheDocument();
+    });
+  });
+
+  it('btn-finance navigates to /finance', async () => {
+    renderComponent();
+    const btn = await screen.findByTestId('btn-finance');
+    fireEvent.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith('/finance');
   });
 
   it('btn-profile navigates to /profile', async () => {

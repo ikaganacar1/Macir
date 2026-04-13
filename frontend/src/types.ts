@@ -41,6 +41,38 @@ export interface DashboardData {
     unit: string;
   }[];
   chart: { date: string; sales: string | number }[];
+  monthly_expenses?: string | number;
+  monthly_income_extra?: string | number;
+  total_debt_remaining?: string | number;
+}
+
+export interface FinanceEntry {
+  pk: number;
+  category: string;
+  entry_type: 'expense' | 'income';
+  amount: string;
+  date: string;
+  is_recurring: boolean;
+  notes: string;
+}
+
+export interface Debt {
+  pk: number;
+  name: string;
+  total_amount: string;
+  monthly_payment: string;
+  start_date: string;
+  is_active: boolean;
+  remaining_amount: string;
+  notes: string;
+}
+
+export interface DebtPayment {
+  pk: number;
+  debt: number;
+  amount: string;
+  date: string;
+  notes: string;
 }
 
 export interface SaleItem {

@@ -18,6 +18,7 @@ import {
   IconSettings,
   IconShoppingBag,
   IconShoppingCart,
+  IconWallet,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -105,6 +106,34 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         </Paper>
       </SimpleGrid>
 
+      {/* Finance summary */}
+      <SimpleGrid cols={2} spacing='sm'>
+        <Paper
+          withBorder
+          p='md'
+          style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+          onClick={() => navigate('/finance')}
+          data-testid='stat-monthly-expenses'
+        >
+          <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Aylık Gider</Text>
+          <Text size='xl' fw={700} c='red'>
+            ₺{stats ? parseFloat(String(stats.monthly_expenses ?? 0)).toFixed(2) : '0.00'}
+          </Text>
+        </Paper>
+        <Paper
+          withBorder
+          p='md'
+          style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+          onClick={() => navigate('/finance')}
+          data-testid='stat-debt-remaining'
+        >
+          <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Kalan Borç</Text>
+          <Text size='xl' fw={700} c='orange'>
+            ₺{stats ? parseFloat(String(stats.total_debt_remaining ?? 0)).toFixed(2) : '0.00'}
+          </Text>
+        </Paper>
+      </SimpleGrid>
+
       {/* Low stock alert — only if low_stock > 0, taps to Stok Ekle */}
       {lowStockCount > 0 && (
         <Box
@@ -183,6 +212,17 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         data-testid='btn-market-prices'
       >
         Piyasa Fiyatları
+      </Button>
+
+      <Button
+        variant='default'
+        h={56}
+        fullWidth
+        leftSection={<IconWallet size={20} />}
+        onClick={() => navigate('/finance')}
+        data-testid='btn-finance'
+      >
+        Borçlar & Giderler
       </Button>
 
       {/* Son Satışlar */}

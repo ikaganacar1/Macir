@@ -19,4 +19,6 @@ export const endpoints = {
   dashboard:    '/api/grocery/dashboard/',
   marketPrices: '/api/market-prices/search/',
   profile:      '/api/grocery/profile/',
+  finance:      '/api/grocery/finance/',
+  debts:        '/api/grocery/debts/',
 };
