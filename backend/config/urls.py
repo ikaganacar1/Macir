@@ -50,7 +50,7 @@ def api_logout(request):
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
     path('api/grocery/', include(grocery_api_urls)),
     path('api/auth/status/', auth_status),
     path('api/auth/csrf/', csrf_view),

@@ -135,3 +135,5 @@ AXES_LOCKOUT_PARAMETERS = ['username']  # lock by username (not just IP)
 AXES_RESET_ON_SUCCESS = True      # reset counter on successful login
 AXES_HTTP_RESPONSE_CODE = 403     # return 403 on lockout (distinct from 401 wrong password)
 AXES_ENABLED = True               # can be overridden in tests with @override_settings
+
+ADMIN_URL = os.environ.get('ADMIN_URL', 'admin/')
