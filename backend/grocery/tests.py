@@ -11,7 +11,7 @@ from django.test import TestCase
 from rest_framework import status as drf_status
 from rest_framework.test import APITestCase
 
-from grocery.models import Category, Product, SaleItem, SaleRecord, StockEntry, StockEntryItem, StoreProfile
+from grocery.models import Category, Debt, DebtPayment, FinanceEntry, Product, SaleItem, SaleRecord, StockEntry, StockEntryItem, StoreProfile
 from grocery.serializers import (
     CategorySerializer,
     ProductSerializer,
@@ -559,3 +559,258 @@ class MarketPriceLocationTest(APITestCase):
 
         # fetch should have been called twice — cache keys differ
         self.assertEqual(mock_fetch.call_count, 2)
+
+
+class FinanceAPITest(APITestCase):
+    """Tests for FinanceEntry CRUD and recurring logic."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='finuser', password='pass')
+        self.client.force_authenticate(user=self.user)
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+
+    def test_create_expense_entry(self):
+        r = self.client.post('/api/grocery/finance/', {
+            'category': 'Kira', 'entry_type': 'expense',
+            'amount': '5000.00', 'date': '2026-04-01',
+            'is_recurring': False, 'notes': '',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(FinanceEntry.objects.filter(owner=self.user).count(), 1)
+
+    def test_create_income_entry(self):
+        r = self.client.post('/api/grocery/finance/', {
+            'category': 'Bonus', 'entry_type': 'income',
+            'amount': '500.00', 'date': '2026-04-05',
+            'is_recurring': False, 'notes': '',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+
+    def test_list_entries_filtered_by_month(self):
+        FinanceEntry.objects.create(
+            owner=self.user, category='Kira', entry_type='expense',
+            amount='5000.00', date='2026-04-01', is_recurring=False,
+        )
+        FinanceEntry.objects.create(
+            owner=self.user, category='Kira', entry_type='expense',
+            amount='5000.00', date='2026-03-01', is_recurring=False,
+        )
+        r = self.client.get('/api/grocery/finance/?month=2026-04')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 1)
+        self.assertEqual(r.data[0]['date'], '2026-04-01')
+
+    def test_delete_entry(self):
+        entry = FinanceEntry.objects.create(
+            owner=self.user, category='Kira', entry_type='expense',
+            amount='5000.00', date='2026-04-01', is_recurring=False,
+        )
+        r = self.client.delete(f'/api/grocery/finance/{entry.pk}/')
+        self.assertEqual(r.status_code, 204)
+        self.assertEqual(FinanceEntry.objects.filter(owner=self.user).count(), 0)
+
+    def test_ownership_isolation(self):
+        other = User.objects.create_user(username='other_fin', password='p')
+        FinanceEntry.objects.create(
+            owner=other, category='Kira', entry_type='expense',
+            amount='3000.00', date='2026-04-01', is_recurring=False,
+        )
+        r = self.client.get('/api/grocery/finance/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 0)
+
+    def test_recurring_entry_auto_created_for_current_month(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        FinanceEntry.objects.create(
+            owner=self.user, category='Elektrik', entry_type='expense',
+            amount='400.00', date='2026-03-01', is_recurring=True,
+        )
+        istanbul = ZoneInfo('Europe/Istanbul')
+        today = datetime.now(istanbul).date()
+        r = self.client.get('/api/grocery/finance/')
+        self.assertEqual(r.status_code, 200)
+        current = FinanceEntry.objects.filter(
+            owner=self.user, category='Elektrik', is_recurring=True,
+            date__year=today.year, date__month=today.month,
+        )
+        self.assertTrue(current.exists())
+
+    def test_recurring_not_duplicated_on_multiple_gets(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        istanbul = ZoneInfo('Europe/Istanbul')
+        today = datetime.now(istanbul).date()
+        FinanceEntry.objects.create(
+            owner=self.user, category='Kira', entry_type='expense',
+            amount='5000.00', date='2026-03-01', is_recurring=True,
+        )
+        self.client.get('/api/grocery/finance/')
+        self.client.get('/api/grocery/finance/')
+        count = FinanceEntry.objects.filter(
+            owner=self.user, category='Kira', is_recurring=True,
+            date__year=today.year, date__month=today.month,
+        ).count()
+        self.assertEqual(count, 1)
+
+
+class DebtAPITest(APITestCase):
+    """Tests for Debt CRUD and remaining_amount annotation."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='debtuser', password='pass')
+        self.client.force_authenticate(user=self.user)
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+
+    def test_create_debt(self):
+        r = self.client.post('/api/grocery/debts/', {
+            'name': 'Banka Kredisi', 'total_amount': '50000.00',
+            'monthly_payment': '2000.00', 'start_date': '2026-01-01', 'notes': '',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Debt.objects.filter(owner=self.user).count(), 1)
+
+    def test_remaining_amount_equals_total_with_no_payments(self):
+        Debt.objects.create(
+            owner=self.user, name='Test', total_amount='10000.00',
+            monthly_payment='500.00', start_date='2026-01-01',
+        )
+        r = self.client.get('/api/grocery/debts/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(float(r.data[0]['remaining_amount']), 10000.00)
+
+    def test_remaining_amount_decreases_with_payments(self):
+        debt = Debt.objects.create(
+            owner=self.user, name='Test', total_amount='10000.00',
+            monthly_payment='500.00', start_date='2026-01-01',
+        )
+        DebtPayment.objects.create(debt=debt, amount='2000.00', date='2026-02-01')
+        r = self.client.get('/api/grocery/debts/')
+        self.assertEqual(float(r.data[0]['remaining_amount']), 8000.00)
+
+    def test_inactive_debts_excluded_by_default(self):
+        Debt.objects.create(
+            owner=self.user, name='Paid', total_amount='5000.00',
+            monthly_payment='500.00', start_date='2026-01-01', is_active=False,
+        )
+        r = self.client.get('/api/grocery/debts/')
+        self.assertEqual(len(r.data), 0)
+
+    def test_inactive_debts_included_with_param(self):
+        Debt.objects.create(
+            owner=self.user, name='Paid', total_amount='5000.00',
+            monthly_payment='500.00', start_date='2026-01-01', is_active=False,
+        )
+        r = self.client.get('/api/grocery/debts/?include_inactive=true')
+        self.assertEqual(len(r.data), 1)
+
+    def test_ownership_isolation(self):
+        other = User.objects.create_user(username='other_debt', password='p')
+        Debt.objects.create(
+            owner=other, name='Other debt', total_amount='1000.00',
+            monthly_payment='100.00', start_date='2026-01-01',
+        )
+        r = self.client.get('/api/grocery/debts/')
+        self.assertEqual(len(r.data), 0)
+
+    def test_patch_is_active_false(self):
+        debt = Debt.objects.create(
+            owner=self.user, name='Test', total_amount='5000.00',
+            monthly_payment='500.00', start_date='2026-01-01',
+        )
+        r = self.client.patch(f'/api/grocery/debts/{debt.pk}/', {'is_active': False}, format='json')
+        self.assertEqual(r.status_code, 200)
+        debt.refresh_from_db()
+        self.assertFalse(debt.is_active)
+
+
+class DebtPaymentAPITest(APITestCase):
+    """Tests for DebtPayment creation, listing, and overpayment guard."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='payuser', password='pass')
+        self.client.force_authenticate(user=self.user)
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.debt = Debt.objects.create(
+            owner=self.user, name='Kredisi', total_amount='10000.00',
+            monthly_payment='1000.00', start_date='2026-01-01',
+        )
+
+    def test_create_payment(self):
+        r = self.client.post(
+            f'/api/grocery/debts/{self.debt.pk}/payments/',
+            {'amount': '1000.00', 'date': '2026-04-01', 'notes': ''},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(DebtPayment.objects.filter(debt=self.debt).count(), 1)
+
+    def test_list_payments(self):
+        DebtPayment.objects.create(debt=self.debt, amount='1000.00', date='2026-02-01')
+        DebtPayment.objects.create(debt=self.debt, amount='1000.00', date='2026-03-01')
+        r = self.client.get(f'/api/grocery/debts/{self.debt.pk}/payments/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 2)
+
+    def test_overpayment_rejected(self):
+        DebtPayment.objects.create(debt=self.debt, amount='9500.00', date='2026-02-01')
+        r = self.client.post(
+            f'/api/grocery/debts/{self.debt.pk}/payments/',
+            {'amount': '1000.00', 'date': '2026-04-01', 'notes': ''},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('amount', r.data)
+
+    def test_other_user_cannot_access_payments(self):
+        other = User.objects.create_user(username='other_pay', password='p')
+        self.client.force_authenticate(user=other)
+        r = self.client.get(f'/api/grocery/debts/{self.debt.pk}/payments/')
+        self.assertEqual(r.status_code, 404)
+
+
+class DashboardFinanceTest(APITestCase):
+    """Tests for monthly_expenses, monthly_income_extra, total_debt_remaining in dashboard."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='dashfin', password='pass')
+        self.client.force_authenticate(user=self.user)
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+
+    def test_dashboard_includes_finance_fields_when_empty(self):
+        r = self.client.get('/api/grocery/dashboard/?range=today')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('monthly_expenses', r.data)
+        self.assertIn('monthly_income_extra', r.data)
+        self.assertIn('total_debt_remaining', r.data)
+        self.assertEqual(float(r.data['monthly_expenses']), 0.0)
+        self.assertEqual(float(r.data['total_debt_remaining']), 0.0)
+
+    def test_dashboard_monthly_expenses_sums_current_month(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        istanbul = ZoneInfo('Europe/Istanbul')
+        today = datetime.now(istanbul).date()
+        FinanceEntry.objects.create(
+            owner=self.user, category='Kira', entry_type='expense',
+            amount='3000.00', date=today, is_recurring=False,
+        )
+        FinanceEntry.objects.create(
+            owner=self.user, category='Elektrik', entry_type='expense',
+            amount='500.00', date=today, is_recurring=False,
+        )
+        r = self.client.get('/api/grocery/dashboard/?range=today')
+        self.assertEqual(float(r.data['monthly_expenses']), 3500.0)
+
+    def test_dashboard_total_debt_remaining_correct(self):
+        debt = Debt.objects.create(
+            owner=self.user, name='Kredi', total_amount='20000.00',
+            monthly_payment='1000.00', start_date='2026-01-01',
+        )
+        DebtPayment.objects.create(debt=debt, amount='5000.00', date='2026-02-01')
+        r = self.client.get('/api/grocery/dashboard/?range=today')
+        self.assertEqual(float(r.data['total_debt_remaining']), 15000.0)

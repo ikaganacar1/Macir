@@ -241,3 +241,76 @@ class StoreProfile(models.Model):
 
     def __str__(self):
         return f"{self.owner.username} store profile"
+
+
+class FinanceEntry(models.Model):
+    """A single expense or unexpected income record."""
+
+    EXPENSE = 'expense'
+    INCOME = 'income'
+    ENTRY_TYPE_CHOICES = [(EXPENSE, 'Gider'), (INCOME, 'Gelir')]
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='finance_entries',
+    )
+    category = models.CharField(max_length=100)
+    entry_type = models.CharField(max_length=10, choices=ENTRY_TYPE_CHOICES, default=EXPENSE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    date = models.DateField()
+    is_recurring = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-date', '-pk']
+        verbose_name = 'Finans Kaydı'
+        verbose_name_plural = 'Finans Kayıtları'
+
+    def __str__(self):
+        return f"{self.category} — {self.amount} ({self.date})"
+
+
+class Debt(models.Model):
+    """A loan or long-term liability with payment tracking."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='debts',
+    )
+    name = models.CharField(max_length=200)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    monthly_payment = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    start_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-start_date', '-pk']
+        verbose_name = 'Borç'
+        verbose_name_plural = 'Borçlar'
+
+    def __str__(self):
+        return self.name
+
+
+class DebtPayment(models.Model):
+    """A single payment event against a Debt."""
+
+    debt = models.ForeignKey(
+        Debt,
+        on_delete=models.CASCADE,
+        related_name='payments',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    date = models.DateField()
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-date', '-pk']
+        verbose_name = 'Borç Ödemesi'
+        verbose_name_plural = 'Borç Ödemeleri'
+
+    def __str__(self):
+        return f"{self.debt.name} — {self.amount} ({self.date})"

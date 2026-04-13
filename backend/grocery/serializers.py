@@ -9,6 +9,9 @@ from rest_framework import serializers
 
 from grocery.models import (
     Category,
+    Debt,
+    DebtPayment,
+    FinanceEntry,
     Product,
     SaleItem,
     SaleRecord,
@@ -198,3 +201,38 @@ class StoreProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreProfile
         fields = ['latitude', 'longitude', 'search_radius_km']
+
+
+class FinanceEntrySerializer(serializers.ModelSerializer):
+    """Serializer for FinanceEntry."""
+
+    class Meta:
+        model = FinanceEntry
+        fields = ['pk', 'category', 'entry_type', 'amount', 'date', 'is_recurring', 'notes']
+
+
+class DebtSerializer(serializers.ModelSerializer):
+    """Serializer for Debt with annotated remaining_amount."""
+
+    remaining_amount = serializers.SerializerMethodField()
+
+    def get_remaining_amount(self, obj):
+        if hasattr(obj, 'remaining_amount') and obj.remaining_amount is not None:
+            return obj.remaining_amount
+        paid = obj.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        return obj.total_amount - paid
+
+    class Meta:
+        model = Debt
+        fields = [
+            'pk', 'name', 'total_amount', 'monthly_payment',
+            'start_date', 'is_active', 'remaining_amount', 'notes',
+        ]
+
+
+class DebtPaymentSerializer(serializers.ModelSerializer):
+    """Serializer for DebtPayment."""
+
+    class Meta:
+        model = DebtPayment
+        fields = ['pk', 'amount', 'date', 'notes']

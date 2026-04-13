@@ -1,21 +1,27 @@
 # src/backend/InvenTree/grocery/api.py
 """REST API views for the Grocery module."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.db.models import DecimalField, ExpressionWrapper, F, OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404
 from django.urls import path
 from django.utils.dateparse import parse_date
 
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from grocery.models import (
     Category,
+    Debt,
+    DebtPayment,
+    FinanceEntry,
     Product,
     SaleItem,
     SaleRecord,
@@ -25,6 +31,9 @@ from grocery.models import (
 )
 from grocery.serializers import (
     CategorySerializer,
+    DebtPaymentSerializer,
+    DebtSerializer,
+    FinanceEntrySerializer,
     ProductSerializer,
     SaleRecordSerializer,
     StockEntrySerializer,
@@ -179,6 +188,39 @@ def _compute_stock_levels(user, active_only=True):
     return received_map, sold_map
 
 
+def _create_missing_recurring(user):
+    """Lazily create current-month entries for all recurring FinanceEntry templates."""
+    istanbul = ZoneInfo('Europe/Istanbul')
+    today = datetime.now(istanbul).date()
+    month_start = today.replace(day=1)
+
+    templates = {}
+    for entry in FinanceEntry.objects.filter(owner=user, is_recurring=True).order_by('-date'):
+        key = (entry.category, entry.entry_type)
+        if key not in templates:
+            templates[key] = entry
+
+    for (category, entry_type), template in templates.items():
+        exists = FinanceEntry.objects.filter(
+            owner=user,
+            category=category,
+            entry_type=entry_type,
+            is_recurring=True,
+            date__year=today.year,
+            date__month=today.month,
+        ).exists()
+        if not exists:
+            FinanceEntry.objects.create(
+                owner=user,
+                category=category,
+                entry_type=entry_type,
+                amount=template.amount,
+                date=month_start,
+                is_recurring=True,
+                notes=template.notes,
+            )
+
+
 class DashboardView(APIView):
     """Aggregated stats for the dashboard."""
 
@@ -297,6 +339,42 @@ class DashboardView(APIView):
             for i in range(6, -1, -1)
         ]
 
+        istanbul = ZoneInfo('Europe/Istanbul')
+        today_istanbul = datetime.now(istanbul).date()
+        month_start_istanbul = today_istanbul.replace(day=1)
+
+        monthly_expenses = FinanceEntry.objects.filter(
+            owner=user,
+            entry_type=FinanceEntry.EXPENSE,
+            date__gte=month_start_istanbul,
+            date__lte=today_istanbul,
+        ).aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
+        )['total']
+
+        monthly_income_extra = FinanceEntry.objects.filter(
+            owner=user,
+            entry_type=FinanceEntry.INCOME,
+            date__gte=month_start_istanbul,
+            date__lte=today_istanbul,
+        ).aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
+        )['total']
+
+        total_debt_principal = Debt.objects.filter(
+            owner=user, is_active=True
+        ).aggregate(
+            total=Coalesce(Sum('total_amount'), Decimal('0'), output_field=DecimalField())
+        )['total']
+
+        total_debt_paid = DebtPayment.objects.filter(
+            debt__owner=user, debt__is_active=True
+        ).aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
+        )['total']
+
+        total_debt_remaining = total_debt_principal - total_debt_paid
+
         return Response({
             'range': range_param,
             'start': str(start),
@@ -307,6 +385,9 @@ class DashboardView(APIView):
             'best_sellers': best_sellers,
             'low_stock': low_stock,
             'chart': chart,
+            'monthly_expenses': monthly_expenses,
+            'monthly_income_extra': monthly_income_extra,
+            'total_debt_remaining': total_debt_remaining,
         })
 
 
@@ -329,6 +410,106 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
+class FinanceEntryList(generics.ListCreateAPIView):
+    serializer_class = FinanceEntrySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        _create_missing_recurring(self.request.user)
+        qs = FinanceEntry.objects.filter(owner=self.request.user)
+        month = self.request.query_params.get('month')  # 'YYYY-MM'
+        if month:
+            try:
+                year, mon = month.split('-')
+                qs = qs.filter(date__year=int(year), date__month=int(mon))
+            except (ValueError, AttributeError):
+                pass
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
+class FinanceEntryDetail(generics.DestroyAPIView):
+    serializer_class = FinanceEntrySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FinanceEntry.objects.filter(owner=self.request.user)
+
+
+def _annotate_debts(qs):
+    """Annotate a Debt queryset with remaining_amount."""
+    return qs.annotate(
+        remaining_amount=ExpressionWrapper(
+            F('total_amount') - Coalesce(
+                Sum('payments__amount'),
+                Decimal('0'),
+                output_field=DecimalField(),
+            ),
+            output_field=DecimalField(),
+        )
+    )
+
+
+class DebtList(generics.ListCreateAPIView):
+    serializer_class = DebtSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Debt.objects.filter(owner=self.request.user)
+        if self.request.query_params.get('include_inactive', 'false').lower() != 'true':
+            qs = qs.filter(is_active=True)
+        return _annotate_debts(qs)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
+class DebtDetail(generics.UpdateAPIView):
+    serializer_class = DebtSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return _annotate_debts(Debt.objects.filter(owner=self.request.user))
+
+
+class DebtPaymentList(generics.ListCreateAPIView):
+    serializer_class = DebtPaymentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def _get_debt(self):
+        return get_object_or_404(Debt, pk=self.kwargs['debt_pk'], owner=self.request.user)
+
+    def get_queryset(self):
+        self._get_debt()  # raises 404 if debt not owned by request.user
+        return DebtPayment.objects.filter(
+            debt__owner=self.request.user,
+            debt_id=self.kwargs['debt_pk'],
+        )
+
+    def perform_create(self, serializer):
+        debt = self._get_debt()
+        amount = serializer.validated_data['amount']
+        total_paid = DebtPayment.objects.filter(debt=debt).aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
+        )['total']
+        if total_paid + amount > debt.total_amount:
+            raise DRFValidationError({'amount': 'Bu ödeme toplam borç miktarını aşıyor.'})
+        serializer.save(debt=debt)
+
+
+class DebtPaymentDetail(generics.DestroyAPIView):
+    serializer_class = DebtPaymentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DebtPayment.objects.filter(
+            debt__owner=self.request.user,
+            debt_id=self.kwargs['debt_pk'],
+        )
+
+
 grocery_api_urls = [
     path('categories/', CategoryList.as_view(), name='api-grocery-category-list'),
     path('categories/<int:pk>/', CategoryDetail.as_view(), name='api-grocery-category-detail'),
@@ -340,4 +521,10 @@ grocery_api_urls = [
     path('sale-records/<int:pk>/', SaleRecordDetail.as_view(), name='api-grocery-sale-record-detail'),
     path('dashboard/', DashboardView.as_view(), name='api-grocery-dashboard'),
     path('profile/', ProfileView.as_view(), name='api-grocery-profile'),
+    path('finance/', FinanceEntryList.as_view(), name='api-grocery-finance-list'),
+    path('finance/<int:pk>/', FinanceEntryDetail.as_view(), name='api-grocery-finance-detail'),
+    path('debts/', DebtList.as_view(), name='api-grocery-debt-list'),
+    path('debts/<int:pk>/', DebtDetail.as_view(), name='api-grocery-debt-detail'),
+    path('debts/<int:debt_pk>/payments/', DebtPaymentList.as_view(), name='api-grocery-debt-payment-list'),
+    path('debts/<int:debt_pk>/payments/<int:pk>/', DebtPaymentDetail.as_view(), name='api-grocery-debt-payment-detail'),
 ]
