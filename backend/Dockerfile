@@ -12,6 +12,6 @@ ENV DB_DIR=/app/db
 
 RUN mkdir -p /app/db /app/media /app/staticfiles
 
-RUN python manage.py collectstatic --noinput
+RUN DEBUG=true python manage.py collectstatic --noinput
 
 CMD ["sh", "-c", "python manage.py migrate && python manage.py createcachetable --no-color && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"]
