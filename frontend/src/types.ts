@@ -41,9 +41,9 @@ export interface DashboardData {
     unit: string;
   }[];
   chart: { date: string; sales: string | number }[];
-  monthly_expenses?: string | number;
-  monthly_income_extra?: string | number;
-  total_debt_remaining?: string | number;
+  monthly_expenses: string | number;
+  monthly_income_extra: string | number;
+  total_debt_remaining: string | number;
 }
 
 export interface FinanceEntry {

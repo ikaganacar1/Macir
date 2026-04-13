@@ -167,7 +167,7 @@ describe('GroceryFinance', () => {
     renderComponent();
     await waitFor(() => expect(screen.getByTestId('btn-back')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('btn-back'));
-    expect(mockNavigate).toHaveBeenCalledWith('/');
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
   it('decrements month when prev-month clicked', async () => {

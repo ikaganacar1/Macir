@@ -200,7 +200,7 @@ export default function GroceryFinance() {
             variant='subtle'
             color='gray'
             px='xs'
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             leftSection={<IconArrowLeft size={18} />}
             data-testid='btn-back'
           >

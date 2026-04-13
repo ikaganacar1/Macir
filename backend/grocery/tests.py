@@ -771,6 +771,20 @@ class DebtPaymentAPITest(APITestCase):
         r = self.client.get(f'/api/grocery/debts/{self.debt.pk}/payments/')
         self.assertEqual(r.status_code, 404)
 
+    def test_delete_payment(self):
+        payment = DebtPayment.objects.create(debt=self.debt, amount='1000.00', date='2026-02-01')
+        r = self.client.delete(f'/api/grocery/debts/{self.debt.pk}/payments/{payment.pk}/')
+        self.assertEqual(r.status_code, 204)
+        self.assertEqual(DebtPayment.objects.filter(debt=self.debt).count(), 0)
+
+    def test_other_user_cannot_delete_payment(self):
+        payment = DebtPayment.objects.create(debt=self.debt, amount='1000.00', date='2026-02-01')
+        other = User.objects.create_user(username='other_del', password='p')
+        self.client.force_authenticate(user=other)
+        r = self.client.delete(f'/api/grocery/debts/{self.debt.pk}/payments/{payment.pk}/')
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(DebtPayment.objects.filter(debt=self.debt).count(), 1)
+
 
 class DashboardFinanceTest(APITestCase):
     """Tests for monthly_expenses, monthly_income_extra, total_debt_remaining in dashboard."""

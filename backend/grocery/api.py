@@ -201,24 +201,14 @@ def _create_missing_recurring(user):
             templates[key] = entry
 
     for (category, entry_type), template in templates.items():
-        exists = FinanceEntry.objects.filter(
+        FinanceEntry.objects.get_or_create(
             owner=user,
             category=category,
             entry_type=entry_type,
             is_recurring=True,
-            date__year=today.year,
-            date__month=today.month,
-        ).exists()
-        if not exists:
-            FinanceEntry.objects.create(
-                owner=user,
-                category=category,
-                entry_type=entry_type,
-                amount=template.amount,
-                date=month_start,
-                is_recurring=True,
-                notes=template.notes,
-            )
+            date=month_start,
+            defaults={'amount': template.amount, 'notes': template.notes},
+        )
 
 
 class DashboardView(APIView):
@@ -339,15 +329,13 @@ class DashboardView(APIView):
             for i in range(6, -1, -1)
         ]
 
-        istanbul = ZoneInfo('Europe/Istanbul')
-        today_istanbul = datetime.now(istanbul).date()
-        month_start_istanbul = today_istanbul.replace(day=1)
+        month_start_istanbul = today.replace(day=1)
 
         monthly_expenses = FinanceEntry.objects.filter(
             owner=user,
             entry_type=FinanceEntry.EXPENSE,
             date__gte=month_start_istanbul,
-            date__lte=today_istanbul,
+            date__lte=today,
         ).aggregate(
             total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
         )['total']
@@ -356,7 +344,7 @@ class DashboardView(APIView):
             owner=user,
             entry_type=FinanceEntry.INCOME,
             date__gte=month_start_istanbul,
-            date__lte=today_istanbul,
+            date__lte=today,
         ).aggregate(
             total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
         )['total']
