@@ -2,8 +2,15 @@ from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
+if not DEBUG and SECRET_KEY == 'dev-secret-change-in-production':
+    raise RuntimeError(
+        "SECRET_KEY environment variable must be set to a strong random value in production. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(50))\""
+    )
+
 ALLOWED_HOSTS = [
     h.strip()
     for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -105,3 +112,11 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_COOKIE_HTTPONLY = False   # JS needs to read it
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Set HTTPS=true in .env once TLS termination is in place (Cloudflare, nginx SSL, etc.)
+_https_enabled = os.environ.get('HTTPS', 'false').lower() == 'true'
+SESSION_COOKIE_SECURE = _https_enabled
+CSRF_COOKIE_SECURE = _https_enabled
+SECURE_SSL_REDIRECT = _https_enabled
+SECURE_HSTS_SECONDS = 31536000 if _https_enabled else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _https_enabled

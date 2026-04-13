@@ -40,7 +40,7 @@ def api_login(request):
     if user:
         login(request._request, user)
         return JsonResponse({'authenticated': True, 'username': user.username})
-    return JsonResponse({'error': 'Invalid credentials'}, status=401)
+    return JsonResponse({'error': 'Geçersiz kullanıcı adı veya şifre.'}, status=401)
 
 
 @require_POST
