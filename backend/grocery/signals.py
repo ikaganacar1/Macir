@@ -67,7 +67,6 @@ def seed_defaults(user):
 
 @receiver(post_save, sender=User)
 def on_user_created(sender, instance, created, **kwargs):
-    """Auto-seed default categories, products, and store profile when a new user is created."""
+    """Create store profile for new users. Products/categories start blank."""
     if created:
         StoreProfile.objects.get_or_create(owner=instance)
-        seed_defaults(instance)
