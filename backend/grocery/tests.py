@@ -6,7 +6,8 @@ from decimal import Decimal
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 
 from rest_framework import status as drf_status
 from rest_framework.test import APITestCase
@@ -828,3 +829,84 @@ class DashboardFinanceTest(APITestCase):
         DebtPayment.objects.create(debt=debt, amount='5000.00', date='2026-02-01')
         r = self.client.get('/api/grocery/dashboard/?range=today')
         self.assertEqual(float(r.data['total_debt_remaining']), 15000.0)
+
+
+class LoginLockoutTest(APITestCase):
+    """Tests for django-axes account lockout on excessive login failures."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='locktest', password='correct-pass-123')
+        from axes.models import AccessAttempt
+        AccessAttempt.objects.all().delete()
+        # Bypass DRF throttle so axes failure limit is reached before rate-limit kicks in
+        self.throttle_patcher = patch('config.urls.LoginRateThrottle.allow_request', return_value=True)
+        self.throttle_patcher.start()
+
+    def tearDown(self):
+        self.throttle_patcher.stop()
+        from axes.models import AccessAttempt
+        AccessAttempt.objects.all().delete()
+
+    def test_correct_login_succeeds(self):
+        r = self.client.post(
+            '/api/auth/login/',
+            {'username': 'locktest', 'password': 'correct-pass-123'},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['authenticated'])
+
+    def test_wrong_password_returns_401(self):
+        r = self.client.post(
+            '/api/auth/login/',
+            {'username': 'locktest', 'password': 'wrong'},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 401)
+        self.assertIn('Geçersiz', r.json()['error'])
+
+    def test_account_locked_after_10_failures(self):
+        for _ in range(10):
+            self.client.post(
+                '/api/auth/login/',
+                {'username': 'locktest', 'password': 'wrong'},
+                format='json',
+            )
+        # 11th attempt with correct password — should be locked out (403)
+        r = self.client.post(
+            '/api/auth/login/',
+            {'username': 'locktest', 'password': 'correct-pass-123'},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_account_not_locked_before_limit(self):
+        for _ in range(9):
+            self.client.post(
+                '/api/auth/login/',
+                {'username': 'locktest', 'password': 'wrong'},
+                format='json',
+            )
+        # 10th attempt with correct password — should still succeed
+        r = self.client.post(
+            '/api/auth/login/',
+            {'username': 'locktest', 'password': 'correct-pass-123'},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_lockout_does_not_affect_other_users(self):
+        User.objects.create_user(username='otheruser', password='other-pass-123')
+        for _ in range(10):
+            self.client.post(
+                '/api/auth/login/',
+                {'username': 'locktest', 'password': 'wrong'},
+                format='json',
+            )
+        # Other user should still be able to log in
+        r = self.client.post(
+            '/api/auth/login/',
+            {'username': 'otheruser', 'password': 'other-pass-123'},
+            format='json',
+        )
+        self.assertEqual(r.status_code, 200)

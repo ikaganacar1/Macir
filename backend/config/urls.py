@@ -36,7 +36,7 @@ def csrf_view(request):
 @throttle_classes([LoginRateThrottle])
 def api_login(request):
     data = request.data
-    user = authenticate(request, username=data.get('username', ''), password=data.get('password', ''))
+    user = authenticate(request._request, username=data.get('username', ''), password=data.get('password', ''))
     if user:
         login(request._request, user)
         return JsonResponse({'authenticated': True, 'username': user.username})

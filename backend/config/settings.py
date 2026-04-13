@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'axes',
     'grocery',
 ]
 
@@ -37,6 +38,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -121,3 +123,15 @@ CSRF_COOKIE_SECURE = _https_enabled
 SECURE_SSL_REDIRECT = _https_enabled
 SECURE_HSTS_SECONDS = 31536000 if _https_enabled else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _https_enabled
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # must be first
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+AXES_FAILURE_LIMIT = 10           # lock after 10 consecutive failures
+AXES_COOLOFF_TIME = 1             # locked for 1 hour
+AXES_LOCKOUT_PARAMETERS = ['username']  # lock by username (not just IP)
+AXES_RESET_ON_SUCCESS = True      # reset counter on successful login
+AXES_HTTP_RESPONSE_CODE = 403     # return 403 on lockout (distinct from 401 wrong password)
+AXES_ENABLED = True               # can be overridden in tests with @override_settings
