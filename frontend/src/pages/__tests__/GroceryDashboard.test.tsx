@@ -31,6 +31,8 @@ const mockData = {
   total_sales: '250.00',
   net_profit: '75.50',
   items_sold: 42,
+  cash_sales: '80.00',
+  card_sales: '20.00',
   best_sellers: [
     { product_id: 1, name: 'Domates', revenue: '120.00', quantity: '30', unit: 'kg' },
     { product_id: 2, name: 'Elma', revenue: '80.00', quantity: '20', unit: 'kg' },

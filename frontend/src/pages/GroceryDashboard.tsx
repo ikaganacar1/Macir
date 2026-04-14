@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Group,
@@ -100,6 +101,18 @@ export default function GroceryDashboard() {
           <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Satılan Ürün Adedi</Text>
           <Text size='xl' fw={700} c='green'>{data?.items_sold ?? 0}</Text>
         </Paper>
+
+        {/* Cash/Card split */}
+        {(Number(data?.cash_sales ?? 0) > 0 || Number(data?.card_sales ?? 0) > 0) && (
+          <Group gap='xs' mt='xs' data-testid='cash-card-split'>
+            <Badge color='green' variant='light' size='sm'>
+              Nakit: ₺{parseFloat(String(data?.cash_sales ?? 0)).toFixed(2)}
+            </Badge>
+            <Badge color='blue' variant='light' size='sm'>
+              Kart: ₺{parseFloat(String(data?.card_sales ?? 0)).toFixed(2)}
+            </Badge>
+          </Group>
+        )}
 
         {/* Chart */}
         <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='chart-section'>

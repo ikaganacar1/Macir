@@ -207,6 +207,24 @@ describe('GroceryMain', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/finance');
   });
 
+  it('navigates to /waste/new when Fire/Kayıp Kaydı is clicked', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-waste')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('btn-waste'));
+    expect(mockNavigate).toHaveBeenCalledWith('/waste/new');
+  });
+
+  it('navigates to /returns/new when İade Al is clicked', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-returns')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('btn-returns'));
+    expect(mockNavigate).toHaveBeenCalledWith('/returns/new');
+  });
+
   it('btn-profile navigates to /profile', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url.includes('dashboard')) return Promise.resolve({ data: mockStats });
