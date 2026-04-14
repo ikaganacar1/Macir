@@ -20,6 +20,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
 
@@ -102,17 +103,8 @@ export default function GroceryWasteEntry() {
   });
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#f9faf7',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group justify='space-between'>
           <Group gap='xs'>
             <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
@@ -124,61 +116,10 @@ export default function GroceryWasteEntry() {
             <Badge size='lg' color='orange'>{selectedCount} ürün</Badge>
           )}
         </Group>
-      </Box>
-
-      <Stack p='md' gap='md' style={{ paddingBottom: selectedCount > 0 ? 100 : 16 }}>
-        <SimpleGrid cols={{ base: 2, sm: 3 }} spacing='sm'>
-          {products.map((product) => {
-            const isSelected = !!selectedItems[product.pk];
-            return (
-              <Paper
-                key={product.pk}
-                withBorder
-                p='sm'
-                style={{
-                  cursor: 'pointer',
-                  position: 'relative',
-                  border: isSelected ? '2px solid var(--mantine-color-orange-6)' : '1px solid #e8f5e9',
-                  background: isSelected ? 'var(--mantine-color-orange-0)' : 'white',
-                  minHeight: 90,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  gap: 4,
-                }}
-                onClick={() => openModal(product)}
-              >
-                {isSelected && (
-                  <Box style={{ position: 'absolute', top: 4, left: 4 }}>
-                    <Badge size='xs' color='orange' variant='filled'>
-                      ✓ {selectedItems[product.pk].quantity}
-                    </Badge>
-                  </Box>
-                )}
-                {product.svg_icon && (
-                  <Image src={product.svg_icon} h={28} w={28} fit='contain' mb={2} />
-                )}
-                <Text fw={600} size='xs' lineClamp={2} style={{ lineHeight: 1.3 }}>
-                  {product.name}
-                </Text>
-                <Text size='xs' c='dimmed'>{product.unit}</Text>
-                <Text size='xs' c='orange'>Stok: {product.stock_level}</Text>
-              </Paper>
-            );
-          })}
-        </SimpleGrid>
-      </Stack>
-
-      {selectedCount > 0 && (
+      }
+      footer={selectedCount > 0 ? (
         <Box
           style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 20,
             background: 'var(--mantine-color-orange-6)',
             padding: '12px 16px',
           }}
@@ -195,7 +136,50 @@ export default function GroceryWasteEntry() {
             Kaydet ({selectedCount} ürün)
           </Button>
         </Box>
-      )}
+      ) : undefined}
+    >
+      <SimpleGrid cols={{ base: 2, sm: 3 }} spacing='sm'>
+        {products.map((product) => {
+          const isSelected = !!selectedItems[product.pk];
+          return (
+            <Paper
+              key={product.pk}
+              withBorder
+              p='sm'
+              style={{
+                cursor: 'pointer',
+                position: 'relative',
+                border: isSelected ? '2px solid var(--mantine-color-orange-6)' : '1px solid #e8f5e9',
+                background: isSelected ? 'var(--mantine-color-orange-0)' : 'white',
+                minHeight: 90,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: 4,
+              }}
+              onClick={() => openModal(product)}
+            >
+              {isSelected && (
+                <Box style={{ position: 'absolute', top: 4, left: 4 }}>
+                  <Badge size='xs' color='orange' variant='filled'>
+                    ✓ {selectedItems[product.pk].quantity}
+                  </Badge>
+                </Box>
+              )}
+              {product.svg_icon && (
+                <Image src={product.svg_icon} h={28} w={28} fit='contain' mb={2} />
+              )}
+              <Text fw={600} size='xs' lineClamp={2} style={{ lineHeight: 1.3 }}>
+                {product.name}
+              </Text>
+              <Text size='xs' c='dimmed'>{product.unit}</Text>
+              <Text size='xs' c='orange'>Stok: {product.stock_level}</Text>
+            </Paper>
+          );
+        })}
+      </SimpleGrid>
 
       <Modal opened={opened} onClose={close} title={modalProduct?.name} centered size='sm'>
         {modalProduct && (
@@ -232,6 +216,6 @@ export default function GroceryWasteEntry() {
           </Stack>
         )}
       </Modal>
-    </Stack>
+    </PageLayout>
   );
 }

@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
 
@@ -61,17 +62,8 @@ export default function GroceryPriceEditor() {
   });
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#f9faf7',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group justify='space-between'>
           <Group gap='xs'>
             <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
@@ -89,71 +81,69 @@ export default function GroceryPriceEditor() {
             Değişiklikleri Kaydet
           </Button>
         </Group>
-      </Box>
-
-      <Stack p='md' gap='lg'>
-        {isLoading && <Text c='dimmed'>Yükleniyor...</Text>}
-        {Object.entries(grouped).map(([categoryName, categoryProducts]) => (
-          <Box key={categoryName}>
-            <Text fw={700} size='sm' c='dimmed' mb='xs' tt='uppercase'>
-              {categoryName}
-            </Text>
-            <Stack gap='xs'>
-              {categoryProducts.map((product, idx) => {
-                const isChanged = product.pk in changedPrices;
-                const displayPrice = isChanged
-                  ? parseFloat(changedPrices[product.pk])
-                  : parseFloat(product.sell_price);
-                return (
-                  <Box key={product.pk}>
-                    <Group justify='space-between' align='center' py='xs'>
-                      <Text
-                        fw={isChanged ? 700 : 400}
-                        c={isChanged ? 'green' : undefined}
-                        style={{ flex: 1 }}
-                      >
-                        {product.name}
-                        <Text span size='xs' c='dimmed' ml={4}>{product.unit}</Text>
-                      </Text>
-                      <NumberInput
-                        value={displayPrice}
-                        onChange={(v) => {
-                          const newVal = Number(v ?? 0);
-                          const origVal = parseFloat(product.sell_price);
-                          if (Math.abs(newVal - origVal) < 0.001) {
-                            setChangedPrices((prev) => {
-                              const next = { ...prev };
-                              delete next[product.pk];
-                              return next;
-                            });
-                          } else {
-                            setChangedPrices((prev) => ({
-                              ...prev,
-                              [product.pk]: String(newVal),
-                            }));
-                          }
-                        }}
-                        min={0}
-                        decimalScale={2}
-                        prefix='₺'
-                        size='sm'
-                        w={100}
-                        styles={{
-                          input: {
-                            borderColor: isChanged ? 'var(--mantine-color-green-6)' : undefined,
-                            fontWeight: isChanged ? 700 : undefined,
-                          },
-                        }}
-                      />
-                    </Group>
-                    {idx < categoryProducts.length - 1 && <Divider />}
-                  </Box>
-                );
-              })}
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
-    </Stack>
+      }
+    >
+      {isLoading && <Text c='dimmed'>Yükleniyor...</Text>}
+      {Object.entries(grouped).map(([categoryName, categoryProducts]) => (
+        <Box key={categoryName}>
+          <Text fw={700} size='sm' c='dimmed' mb='xs' tt='uppercase'>
+            {categoryName}
+          </Text>
+          <Stack gap='xs'>
+            {categoryProducts.map((product, idx) => {
+              const isChanged = product.pk in changedPrices;
+              const displayPrice = isChanged
+                ? parseFloat(changedPrices[product.pk])
+                : parseFloat(product.sell_price);
+              return (
+                <Box key={product.pk}>
+                  <Group justify='space-between' align='center' py='xs'>
+                    <Text
+                      fw={isChanged ? 700 : 400}
+                      c={isChanged ? 'green' : undefined}
+                      style={{ flex: 1 }}
+                    >
+                      {product.name}
+                      <Text span size='xs' c='dimmed' ml={4}>{product.unit}</Text>
+                    </Text>
+                    <NumberInput
+                      value={displayPrice}
+                      onChange={(v) => {
+                        const newVal = Number(v ?? 0);
+                        const origVal = parseFloat(product.sell_price);
+                        if (Math.abs(newVal - origVal) < 0.001) {
+                          setChangedPrices((prev) => {
+                            const next = { ...prev };
+                            delete next[product.pk];
+                            return next;
+                          });
+                        } else {
+                          setChangedPrices((prev) => ({
+                            ...prev,
+                            [product.pk]: String(newVal),
+                          }));
+                        }
+                      }}
+                      min={0}
+                      decimalScale={2}
+                      prefix='₺'
+                      size='sm'
+                      w={100}
+                      styles={{
+                        input: {
+                          borderColor: isChanged ? 'var(--mantine-color-green-6)' : undefined,
+                          fontWeight: isChanged ? 700 : undefined,
+                        },
+                      }}
+                    />
+                  </Group>
+                  {idx < categoryProducts.length - 1 && <Divider />}
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
+      ))}
+    </PageLayout>
   );
 }

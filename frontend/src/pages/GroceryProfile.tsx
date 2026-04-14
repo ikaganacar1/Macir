@@ -4,7 +4,6 @@ import {
   Group,
   Paper,
   SimpleGrid,
-  Stack,
   Text,
   Title,
 } from '@mantine/core';
@@ -19,6 +18,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { StoreProfile } from '../types';
 
@@ -98,44 +98,33 @@ export default function GroceryProfile() {
 
   return (
     <Box maw={480} mx='auto'>
-      {/* Sticky header */}
-      <Box
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#fff',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-        px='md'
-        py='sm'
-      >
-        <Group justify='space-between'>
-          <Group>
+      <PageLayout
+        header={
+          <Group justify='space-between'>
+            <Group>
+              <Button
+                variant='subtle'
+                color='gray'
+                px='xs'
+                onClick={() => navigate(-1)}
+                data-testid='btn-back'
+              >
+                <IconArrowLeft size={20} />
+              </Button>
+              <Title order={5}>Mağaza Konumu</Title>
+            </Group>
             <Button
-              variant='subtle'
+              size='sm'
               color='green'
-              px={8}
-              onClick={() => navigate(-1)}
-              data-testid='btn-back'
+              loading={isPending}
+              onClick={() => save()}
+              data-testid='btn-save'
             >
-              <IconArrowLeft size={20} />
+              Kaydet
             </Button>
-            <Title order={5}>Mağaza Konumu</Title>
           </Group>
-          <Button
-            size='sm'
-            color='green'
-            loading={isPending}
-            onClick={() => save()}
-            data-testid='btn-save'
-          >
-            Kaydet
-          </Button>
-        </Group>
-      </Box>
-
-      <Stack p='md' gap='sm'>
+        }
+      >
         {/* Map */}
         <Paper withBorder style={{ height: 320, overflow: 'hidden', border: '1px solid #e8f5e9' }}>
           <MapContainer
@@ -187,7 +176,7 @@ export default function GroceryProfile() {
         <Text size='xs' c='dimmed'>
           Haritaya dokunarak mağaza konumunuzu ayarlayın. Yakın marketlerin fiyatları önce gösterilir.
         </Text>
-      </Stack>
+      </PageLayout>
     </Box>
   );
 }

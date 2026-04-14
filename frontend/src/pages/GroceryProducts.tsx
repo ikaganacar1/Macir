@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   FileInput,
   Group,
@@ -22,6 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { MarketPriceResult, Category, Product, StoreProfile } from '../types';
 import { getMarketLogo } from '../utils/marketLogos';
@@ -276,18 +276,8 @@ export default function GroceryProducts() {
   };
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#f9faf7',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group justify='space-between'>
           <Group gap='xs'>
             <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
@@ -310,41 +300,39 @@ export default function GroceryProducts() {
             </Button>
           </Group>
         </Group>
-      </Box>
+      }
+    >
+      <TextInput
+        placeholder='Ürün ara...'
+        leftSection={<IconSearch size={16} />}
+        value={search}
+        onChange={(e) => setSearch(e.currentTarget.value)}
+      />
 
-      <Stack p='md' gap='sm'>
-        <TextInput
-          placeholder='Ürün ara...'
-          leftSection={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-        />
-
-        {filteredProducts.map((product) => (
-          <Paper key={product.pk} withBorder p='sm' style={{ border: '1px solid #e8f5e9' }}>
-            <Group justify='space-between'>
-              <div>
-                <Text fw={600} c={product.is_active ? undefined : 'dimmed'}>
-                  {product.name} {!product.is_active && '(pasif)'}
-                </Text>
-                <Text size='xs' c='dimmed'>
-                  {product.category_name} · ₺{product.sell_price}/{product.unit}
-                </Text>
-                <MarketPriceIndicator productName={product.name} productPk={product.pk} lat={profileLat} lng={profileLng} />
-              </div>
-              <Button
-                variant='subtle'
-                color='green'
-                size='xs'
-                leftSection={<IconEdit size={14} />}
-                onClick={() => openEdit(product)}
-              >
-                Düzenle
-              </Button>
-            </Group>
-          </Paper>
-        ))}
-      </Stack>
+      {filteredProducts.map((product) => (
+        <Paper key={product.pk} withBorder p='sm' style={{ border: '1px solid #e8f5e9' }}>
+          <Group justify='space-between'>
+            <div>
+              <Text fw={600} c={product.is_active ? undefined : 'dimmed'}>
+                {product.name} {!product.is_active && '(pasif)'}
+              </Text>
+              <Text size='xs' c='dimmed'>
+                {product.category_name} · ₺{product.sell_price}/{product.unit}
+              </Text>
+              <MarketPriceIndicator productName={product.name} productPk={product.pk} lat={profileLat} lng={profileLng} />
+            </div>
+            <Button
+              variant='subtle'
+              color='green'
+              size='xs'
+              leftSection={<IconEdit size={14} />}
+              onClick={() => openEdit(product)}
+            >
+              Düzenle
+            </Button>
+          </Group>
+        </Paper>
+      ))}
 
       {/* Preset picker modal */}
       <Modal
@@ -435,6 +423,6 @@ export default function GroceryProducts() {
           </Stack>
         </form>
       </Modal>
-    </Stack>
+    </PageLayout>
   );
 }

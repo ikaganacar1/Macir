@@ -4,7 +4,6 @@ import {
   Group,
   Paper,
   Skeleton,
-  Stack,
   Text,
   TextInput,
   Title,
@@ -17,6 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { SaleRecord } from '../types';
 import { recordTotal } from '../utils/sales';
@@ -98,18 +98,8 @@ export default function GrocerySalesHistory() {
   ];
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          background: '#f9faf7',
-          zIndex: 10,
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group>
           <Button
             variant='subtle'
@@ -117,117 +107,112 @@ export default function GrocerySalesHistory() {
             px='xs'
             data-testid='btn-back'
             onClick={() => navigate(-1)}
-            leftSection={<IconArrowLeft size={18} />}
           >
-            {''}
+            <IconArrowLeft size={20} />
           </Button>
           <Title order={4}>Satış Geçmişi</Title>
         </Group>
-      </Box>
-
+      }
+    >
       {/* Filter bar */}
-      <Stack p='md' gap='sm'>
-        <Group gap='xs'>
-          {dateButtons.map((btn) => (
-            <Button
-              key={btn.value}
-              size='xs'
-              variant={dateRange === btn.value ? 'filled' : 'light'}
-              color='green'
-              onClick={() => setDateRange(btn.value)}
-            >
-              {btn.label}
-            </Button>
-          ))}
-        </Group>
-        <TextInput
-          placeholder='Ürün ara...'
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          size='sm'
-        />
-      </Stack>
+      <Group gap='xs'>
+        {dateButtons.map((btn) => (
+          <Button
+            key={btn.value}
+            size='xs'
+            variant={dateRange === btn.value ? 'filled' : 'light'}
+            color='green'
+            onClick={() => setDateRange(btn.value)}
+          >
+            {btn.label}
+          </Button>
+        ))}
+      </Group>
+      <TextInput
+        placeholder='Ürün ara...'
+        value={search}
+        onChange={(e) => setSearch(e.currentTarget.value)}
+        size='sm'
+      />
 
       {/* Record list */}
-      <Stack px='md' pb='md' gap='sm'>
-        {isLoading ? (
-          [1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={56} radius='md' />)
-        ) : records.length === 0 ? (
-          <Text c='dimmed' ta='center' py='xl'>Henüz satış yok</Text>
-        ) : filtered.length === 0 ? (
-          <Text c='dimmed' ta='center' py='xl'>Sonuç bulunamadı</Text>
-        ) : (
-          filtered.map((record) => {
-            const isOpen = expanded.has(record.pk);
-            return (
-              <Paper
-                key={record.pk}
-                withBorder
-                style={{ border: '1px solid #e8f5e9', overflow: 'hidden' }}
+      {isLoading ? (
+        [1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={56} radius='md' />)
+      ) : records.length === 0 ? (
+        <Text c='dimmed' ta='center' py='xl'>Henüz satış yok</Text>
+      ) : filtered.length === 0 ? (
+        <Text c='dimmed' ta='center' py='xl'>Sonuç bulunamadı</Text>
+      ) : (
+        filtered.map((record) => {
+          const isOpen = expanded.has(record.pk);
+          return (
+            <Paper
+              key={record.pk}
+              withBorder
+              style={{ border: '1px solid #e8f5e9', overflow: 'hidden' }}
+            >
+              <Group
+                justify='space-between'
+                p='sm'
+                style={{ cursor: 'pointer' }}
+                data-testid={`sale-card-${record.pk}`}
+                onClick={() => toggleExpanded(record.pk)}
               >
-                <Group
-                  justify='space-between'
-                  p='sm'
-                  style={{ cursor: 'pointer' }}
-                  data-testid={`sale-card-${record.pk}`}
-                  onClick={() => toggleExpanded(record.pk)}
-                >
-                  <Text size='sm'>{formatFullDate(record.date)}</Text>
-                  <Group gap='xs'>
-                    <Text size='sm' fw={700} c='green'>₺{recordTotal(record)}</Text>
-                    {isOpen
-                      ? <IconChevronUp size={16} color='gray' />
-                      : <IconChevronDown size={16} color='gray' />}
-                  </Group>
+                <Text size='sm'>{formatFullDate(record.date)}</Text>
+                <Group gap='xs'>
+                  <Text size='sm' fw={700} c='green'>₺{recordTotal(record)}</Text>
+                  {isOpen
+                    ? <IconChevronUp size={16} color='gray' />
+                    : <IconChevronDown size={16} color='gray' />}
                 </Group>
+              </Group>
 
-                {isOpen && (
-                  <Box
-                    data-testid={`sale-items-${record.pk}`}
-                    px='sm'
-                    pb='sm'
-                    style={{ borderTop: '1px solid #e8f5e9' }}
-                  >
-                    {/* Column header */}
-                    <Group justify='space-between' py='xs'>
-                      <Text size='xs' c='dimmed' fw={600} style={{ flex: 3 }}>ÜRÜN</Text>
-                      <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>MİKTAR</Text>
-                      <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>FİYAT</Text>
-                      <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>TOPLAM</Text>
-                    </Group>
+              {isOpen && (
+                <Box
+                  data-testid={`sale-items-${record.pk}`}
+                  px='sm'
+                  pb='sm'
+                  style={{ borderTop: '1px solid #e8f5e9' }}
+                >
+                  {/* Column header */}
+                  <Group justify='space-between' py='xs'>
+                    <Text size='xs' c='dimmed' fw={600} style={{ flex: 3 }}>ÜRÜN</Text>
+                    <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>MİKTAR</Text>
+                    <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>FİYAT</Text>
+                    <Text size='xs' c='dimmed' fw={600} style={{ flex: 1, textAlign: 'right' }}>TOPLAM</Text>
+                  </Group>
 
-                    {record.items.map((item) => {
-                      const lineTotal = (
-                        parseFloat(item.quantity) * parseFloat(item.sell_price)
-                      ).toFixed(2);
-                      return (
-                        <Group key={item.pk} justify='space-between' py={4}>
-                          <Text size='sm' style={{ flex: 3 }}>{item.product_name}</Text>
-                          <Text size='sm' style={{ flex: 1, textAlign: 'right' }}>
-                            {parseFloat(item.quantity).toFixed(2)}
-                          </Text>
-                          <Text size='sm' style={{ flex: 1, textAlign: 'right' }}>
-                            ₺{parseFloat(item.sell_price).toFixed(2)}
-                          </Text>
-                          <Text size='sm' fw={600} style={{ flex: 1, textAlign: 'right' }}>
-                            ₺{lineTotal}
-                          </Text>
-                        </Group>
-                      );
-                    })}
+                  {record.items.map((item) => {
+                    const lineTotal = (
+                      parseFloat(item.quantity) * parseFloat(item.sell_price)
+                    ).toFixed(2);
+                    return (
+                      <Group key={item.pk} justify='space-between' py={4}>
+                        <Text size='sm' style={{ flex: 3 }}>{item.product_name}</Text>
+                        <Text size='sm' style={{ flex: 1, textAlign: 'right' }}>
+                          {parseFloat(item.quantity).toFixed(2)}
+                        </Text>
+                        <Text size='sm' style={{ flex: 1, textAlign: 'right' }}>
+                          ₺{parseFloat(item.sell_price).toFixed(2)}
+                        </Text>
+                        <Text size='sm' fw={600} style={{ flex: 1, textAlign: 'right' }}>
+                          ₺{lineTotal}
+                        </Text>
+                      </Group>
+                    );
+                  })}
 
-                    {record.notes ? (
-                      <Text size='xs' c='dimmed' pt='xs' style={{ borderTop: '1px solid #f0f0f0' }}>
-                        {record.notes}
-                      </Text>
-                    ) : null}
-                  </Box>
-                )}
-              </Paper>
-            );
-          })
-        )}
-      </Stack>
-    </Stack>
+                  {record.notes ? (
+                    <Text size='xs' c='dimmed' pt='xs' style={{ borderTop: '1px solid #f0f0f0' }}>
+                      {record.notes}
+                    </Text>
+                  ) : null}
+                </Box>
+              )}
+            </Paper>
+          );
+        })
+      )}
+    </PageLayout>
   );
 }

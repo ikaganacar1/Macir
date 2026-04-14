@@ -18,6 +18,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
 
@@ -115,18 +116,8 @@ export default function GroceryAddStock() {
   const isQtyField = modalState?.field === 'quantity';
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#f9faf7',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group justify='space-between'>
           <Group gap='xs'>
             <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
@@ -141,117 +132,110 @@ export default function GroceryAddStock() {
             </Text>
           </Group>
         </Group>
-      </Box>
-
-      {/* Product list grouped by category */}
-      <Stack p='md' gap='md' style={{ paddingBottom: 100 }}>
-        {Array.from(grouped.entries()).map(([category, catProducts]) => (
-          <Stack key={category} gap='xs'>
-            <Divider
-              label={<Text size='xs' fw={700} tt='uppercase' c='dimmed'>{category}</Text>}
-              labelPosition='left'
-            />
-            {catProducts.map((product) => {
-              const line = lines[product.pk];
-              const qty = line?.quantity ?? '0';
-              const price = line?.purchase_price ?? '0';
-              const hasQty = parseFloat(qty) > 0;
-              const isLow = product.stock_level <= parseFloat(String(product.low_stock_threshold));
-
-              return (
-                <Paper
-                  key={product.pk}
-                  withBorder
-                  p='sm'
-                  style={{
-                    border: hasQty ? '2px solid var(--mantine-color-green-5)' : '1px solid #e8f5e9',
-                    background: hasQty ? 'var(--mantine-color-green-0)' : 'white',
-                  }}
-                >
-                  <Group justify='space-between' mb='xs'>
-                    <Group gap='xs'>
-                      <Text fw={600} size='sm'>{product.name}</Text>
-                      {isLow ? (
-                        <Badge size='xs' color='orange' variant='light' data-testid={`low-stock-${product.pk}`}>
-                          ⚠️ {product.stock_level} {product.unit}
-                        </Badge>
-                      ) : (
-                        <Badge size='xs' color='green' variant='light'>
-                          {product.stock_level} {product.unit}
-                        </Badge>
-                      )}
-                    </Group>
-                  </Group>
-                  <Group gap='xs'>
-                    <Button
-                      variant={hasQty ? 'filled' : 'light'}
-                      color='green'
-                      size='sm'
-                      style={{ flex: 1, minWidth: 0 }}
-                      onClick={() => openFieldModal(product.pk, 'quantity')}
-                      data-testid={`qty-btn-${product.pk}`}
-                    >
-                      <Stack gap={0} align='center'>
-                        <Text size='10px' opacity={0.8}>Miktar</Text>
-                        <Text size='sm' fw={700}>
-                          {hasQty ? `${qty} ${product.unit}` : '—'}
-                        </Text>
-                      </Stack>
-                    </Button>
-                    <Button
-                      variant={parseFloat(price) > 0 ? 'filled' : 'light'}
-                      color='green'
-                      size='sm'
-                      style={{ flex: 1, minWidth: 0 }}
-                      onClick={() => openFieldModal(product.pk, 'purchase_price')}
-                      data-testid={`price-btn-${product.pk}`}
-                    >
-                      <Stack gap={0} align='center'>
-                        <Text size='10px' opacity={0.8}>Alış Fiyatı</Text>
-                        <Text size='sm' fw={700}>
-                          {parseFloat(price) > 0 ? `₺${parseFloat(price).toFixed(2)}` : '—'}
-                        </Text>
-                      </Stack>
-                    </Button>
-                  </Group>
-                </Paper>
-              );
-            })}
-          </Stack>
-        ))}
-      </Stack>
-
-      {/* Sticky footer */}
-      <Box
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 20,
-          background: '#f9faf7',
-          borderTop: '1px solid #e8f5e9',
-          padding: '12px 16px',
-          boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
-        }}
-      >
-        <Group justify='space-between' mb='xs'>
-          <Text size='sm' c='dimmed'>
-            {filledCount > 0 ? `${filledCount} ürün eklendi` : 'Ürün miktarı girin'}
-          </Text>
-        </Group>
-        <Button
-          color='green'
-          fullWidth
-          size='md'
-          disabled={filledCount === 0}
-          loading={saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
-          data-testid="save-button"
+      }
+      footer={
+        <Box
+          style={{
+            background: '#f9faf7',
+            borderTop: '1px solid #e8f5e9',
+            padding: '12px 16px',
+            boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+          }}
         >
-          Kaydet
-        </Button>
-      </Box>
+          <Group justify='space-between' mb='xs'>
+            <Text size='sm' c='dimmed'>
+              {filledCount > 0 ? `${filledCount} ürün eklendi` : 'Ürün miktarı girin'}
+            </Text>
+          </Group>
+          <Button
+            color='green'
+            fullWidth
+            size='md'
+            disabled={filledCount === 0}
+            loading={saveMutation.isPending}
+            onClick={() => saveMutation.mutate()}
+            data-testid="save-button"
+          >
+            Kaydet
+          </Button>
+        </Box>
+      }
+    >
+      {/* Product list grouped by category */}
+      {Array.from(grouped.entries()).map(([category, catProducts]) => (
+        <Stack key={category} gap='xs'>
+          <Divider
+            label={<Text size='xs' fw={700} tt='uppercase' c='dimmed'>{category}</Text>}
+            labelPosition='left'
+          />
+          {catProducts.map((product) => {
+            const line = lines[product.pk];
+            const qty = line?.quantity ?? '0';
+            const price = line?.purchase_price ?? '0';
+            const hasQty = parseFloat(qty) > 0;
+            const isLow = product.stock_level <= parseFloat(String(product.low_stock_threshold));
+
+            return (
+              <Paper
+                key={product.pk}
+                withBorder
+                p='sm'
+                style={{
+                  border: hasQty ? '2px solid var(--mantine-color-green-5)' : '1px solid #e8f5e9',
+                  background: hasQty ? 'var(--mantine-color-green-0)' : 'white',
+                }}
+              >
+                <Group justify='space-between' mb='xs'>
+                  <Group gap='xs'>
+                    <Text fw={600} size='sm'>{product.name}</Text>
+                    {isLow ? (
+                      <Badge size='xs' color='orange' variant='light' data-testid={`low-stock-${product.pk}`}>
+                        ⚠️ {product.stock_level} {product.unit}
+                      </Badge>
+                    ) : (
+                      <Badge size='xs' color='green' variant='light'>
+                        {product.stock_level} {product.unit}
+                      </Badge>
+                    )}
+                  </Group>
+                </Group>
+                <Group gap='xs'>
+                  <Button
+                    variant={hasQty ? 'filled' : 'light'}
+                    color='green'
+                    size='sm'
+                    style={{ flex: 1, minWidth: 0 }}
+                    onClick={() => openFieldModal(product.pk, 'quantity')}
+                    data-testid={`qty-btn-${product.pk}`}
+                  >
+                    <Stack gap={0} align='center'>
+                      <Text size='10px' opacity={0.8}>Miktar</Text>
+                      <Text size='sm' fw={700}>
+                        {hasQty ? `${qty} ${product.unit}` : '—'}
+                      </Text>
+                    </Stack>
+                  </Button>
+                  <Button
+                    variant={parseFloat(price) > 0 ? 'filled' : 'light'}
+                    color='green'
+                    size='sm'
+                    style={{ flex: 1, minWidth: 0 }}
+                    onClick={() => openFieldModal(product.pk, 'purchase_price')}
+                    data-testid={`price-btn-${product.pk}`}
+                  >
+                    <Stack gap={0} align='center'>
+                      <Text size='10px' opacity={0.8}>Alış Fiyatı</Text>
+                      <Text size='sm' fw={700}>
+                        {parseFloat(price) > 0 ? `₺${parseFloat(price).toFixed(2)}` : '—'}
+                      </Text>
+                    </Stack>
+                  </Button>
+                </Group>
+              </Paper>
+            );
+          })}
+        </Stack>
+      ))}
 
       {/* NumpadInput Modal */}
       <Modal
@@ -279,6 +263,6 @@ export default function GroceryAddStock() {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+    </PageLayout>
   );
 }

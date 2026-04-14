@@ -25,6 +25,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
 
@@ -151,18 +152,8 @@ export default function GroceryRecordSales() {
     : [];
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#f9faf7',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group justify='space-between'>
           <Group gap='xs'>
             <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
@@ -174,126 +165,10 @@ export default function GroceryRecordSales() {
             <Badge size='lg' color='green'>{selectedCount} ürün</Badge>
           )}
         </Group>
-      </Box>
-
-      <Stack p='md' gap='md' style={{ paddingBottom: selectedCount > 0 ? 140 : 16 }}>
-        {/* Search */}
-        <TextInput
-          placeholder='Ürün ara...'
-          leftSection={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          size='md'
-        />
-
-        {/* Payment method toggle */}
-        <SegmentedControl
-          value={paymentMethod}
-          onChange={(v) => setPaymentMethod(v as 'cash' | 'card')}
-          data={[
-            { label: 'Nakit', value: 'cash' },
-            { label: 'Kart', value: 'card' },
-          ]}
-          color='green'
-          fullWidth
-        />
-
-        {/* Category chips */}
-        <ScrollArea>
-          <Group gap='xs' wrap='nowrap'>
-            {categories.map((cat) => (
-              <Chip
-                key={cat}
-                checked={activeCategory === cat}
-                onChange={() => setActiveCategory(cat)}
-                color='green'
-                size='sm'
-              >
-                {cat === 'all' ? 'Tümü' : cat}
-              </Chip>
-            ))}
-          </Group>
-        </ScrollArea>
-
-        {/* Product card grid */}
-        <SimpleGrid cols={{ base: 2, sm: 3 }} spacing='sm'>
-          {filteredProducts.map((product) => {
-            const isSelected = !!selectedItems[product.pk];
-            const isLowStock = (product.stock_level ?? 999) <= parseFloat(String(product.low_stock_threshold ?? '2'));
-            return (
-              <Paper
-                key={product.pk}
-                withBorder
-                p='sm'
-                style={{
-                  cursor: 'pointer',
-                  position: 'relative',
-                  border: isSelected
-                    ? '2px solid var(--mantine-color-green-6)'
-                    : '1px solid #e8f5e9',
-                  background: isSelected ? 'var(--mantine-color-green-0)' : 'white',
-                  minHeight: 90,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  gap: 4,
-                }}
-                onClick={() => openModal(product)}
-              >
-                {/* Low stock dot */}
-                {isLowStock && (
-                  <Box
-                    data-testid="low-stock-indicator"
-                    style={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: 'var(--mantine-color-orange-5)',
-                    }}
-                  />
-                )}
-                {/* Selected badge */}
-                {isSelected && (
-                  <Box style={{ position: 'absolute', top: 4, left: 4 }}>
-                    <Badge size='xs' color='green' variant='filled'>
-                      ✓ {selectedItems[product.pk].quantity}
-                    </Badge>
-                  </Box>
-                )}
-                {product.svg_icon && (
-                  <Image src={product.svg_icon} h={28} w={28} fit='contain' mb={2} />
-                )}
-                <Text fw={600} size='xs' lineClamp={2} style={{ lineHeight: 1.3 }}>
-                  {product.name}
-                </Text>
-                <Text size='xs' c='dimmed'>{product.unit}</Text>
-                <Text size='sm' fw={700} c='green'>
-                  ₺{parseFloat(product.sell_price).toFixed(2)}
-                </Text>
-              </Paper>
-            );
-          })}
-        </SimpleGrid>
-
-        {filteredProducts.length === 0 && (
-          <Text c='dimmed' ta='center' size='sm'>Ürün bulunamadı</Text>
-        )}
-      </Stack>
-
-      {/* Sticky footer */}
-      {selectedCount > 0 && (
+      }
+      footer={selectedCount > 0 ? (
         <Box
           style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 20,
             background: 'var(--mantine-color-green-6)',
             padding: '12px 16px',
             boxShadow: '0 -4px 16px rgba(0,0,0,0.15)',
@@ -339,6 +214,114 @@ export default function GroceryRecordSales() {
             </Button>
           </Stack>
         </Box>
+      ) : undefined}
+      footerPadding={140}
+    >
+      {/* Search */}
+      <TextInput
+        placeholder='Ürün ara...'
+        leftSection={<IconSearch size={16} />}
+        value={search}
+        onChange={(e) => setSearch(e.currentTarget.value)}
+        size='md'
+      />
+
+      {/* Payment method toggle */}
+      <SegmentedControl
+        value={paymentMethod}
+        onChange={(v) => setPaymentMethod(v as 'cash' | 'card')}
+        data={[
+          { label: 'Nakit', value: 'cash' },
+          { label: 'Kart', value: 'card' },
+        ]}
+        color='green'
+        fullWidth
+      />
+
+      {/* Category chips */}
+      <ScrollArea>
+        <Group gap='xs' wrap='nowrap'>
+          {categories.map((cat) => (
+            <Chip
+              key={cat}
+              checked={activeCategory === cat}
+              onChange={() => setActiveCategory(cat)}
+              color='green'
+              size='sm'
+            >
+              {cat === 'all' ? 'Tümü' : cat}
+            </Chip>
+          ))}
+        </Group>
+      </ScrollArea>
+
+      {/* Product card grid */}
+      <SimpleGrid cols={{ base: 2, sm: 3 }} spacing='sm'>
+        {filteredProducts.map((product) => {
+          const isSelected = !!selectedItems[product.pk];
+          const isLowStock = (product.stock_level ?? 999) <= parseFloat(String(product.low_stock_threshold ?? '2'));
+          return (
+            <Paper
+              key={product.pk}
+              withBorder
+              p='sm'
+              style={{
+                cursor: 'pointer',
+                position: 'relative',
+                border: isSelected
+                  ? '2px solid var(--mantine-color-green-6)'
+                  : '1px solid #e8f5e9',
+                background: isSelected ? 'var(--mantine-color-green-0)' : 'white',
+                minHeight: 90,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: 4,
+              }}
+              onClick={() => openModal(product)}
+            >
+              {/* Low stock dot */}
+              {isLowStock && (
+                <Box
+                  data-testid="low-stock-indicator"
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: 'var(--mantine-color-orange-5)',
+                  }}
+                />
+              )}
+              {/* Selected badge */}
+              {isSelected && (
+                <Box style={{ position: 'absolute', top: 4, left: 4 }}>
+                  <Badge size='xs' color='green' variant='filled'>
+                    ✓ {selectedItems[product.pk].quantity}
+                  </Badge>
+                </Box>
+              )}
+              {product.svg_icon && (
+                <Image src={product.svg_icon} h={28} w={28} fit='contain' mb={2} />
+              )}
+              <Text fw={600} size='xs' lineClamp={2} style={{ lineHeight: 1.3 }}>
+                {product.name}
+              </Text>
+              <Text size='xs' c='dimmed'>{product.unit}</Text>
+              <Text size='sm' fw={700} c='green'>
+                ₺{parseFloat(product.sell_price).toFixed(2)}
+              </Text>
+            </Paper>
+          );
+        })}
+      </SimpleGrid>
+
+      {filteredProducts.length === 0 && (
+        <Text c='dimmed' ta='center' size='sm'>Ürün bulunamadı</Text>
       )}
 
       {/* Quantity Modal */}
@@ -399,6 +382,6 @@ export default function GroceryRecordSales() {
           </Stack>
         )}
       </Modal>
-    </Stack>
+    </PageLayout>
   );
 }

@@ -20,6 +20,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { MarketPriceResult, MarketStore, Product, StoreProfile } from '../types';
 import { getMarketLogo } from '../utils/marketLogos';
@@ -189,104 +190,97 @@ export default function GroceryMarketPrices() {
 
   return (
     <Box maw={480} mx='auto'>
-      {/* Sticky header */}
-      <Box
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: '#fff',
-          borderBottom: '1px solid #e8f5e9',
-        }}
-        px='md'
-        py='sm'
-      >
-        <Group>
-          <Button
-            variant='subtle'
-            color='green'
-            px={8}
-            onClick={() => navigate(-1)}
-            data-testid='btn-back'
-          >
-            <IconArrowLeft size={20} />
-          </Button>
-          <Title order={5}>Piyasa Fiyatları</Title>
-        </Group>
-        <Group gap='xs' mt='xs'>
-          <TextInput
-            flex={1}
-            size='sm'
-            placeholder='Ürün adı yazın...'
-            leftSection={<IconSearch size={14} />}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-          />
-          <Button size='sm' color='green' onClick={submit}>
-            Ara
-          </Button>
-        </Group>
-      </Box>
-
-      {/* Content */}
-      {!submittedQuery ? (
-        <WelcomeScreen products={productsData ?? []} lat={lat} lng={lng} radius={radius} />
-      ) : (
-        <Stack p='md' gap='sm'>
-          {isLoading && (
-            <>
-              <Skeleton height={56} radius='md' />
-              <Skeleton height={56} radius='md' />
-              <Skeleton height={56} radius='md' />
-            </>
-          )}
-
-          {!isLoading && results.length === 0 && (
-            <Text c='dimmed' ta='center' mt='xl'>
-              Sonuç bulunamadı
-            </Text>
-          )}
-
-          {!isLoading && results.map((result) => {
-            const isExpanded = expanded.has(result.id);
-            return (
-              <Paper
-                key={result.id}
-                withBorder
-                p='sm'
-                style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
-                onClick={() => toggleExpand(result.id)}
-                data-testid={`result-card-${result.id}`}
+      <PageLayout
+        header={
+          <>
+            <Group>
+              <Button
+                variant='subtle'
+                color='gray'
+                px='xs'
+                onClick={() => navigate(-1)}
+                data-testid='btn-back'
               >
-                <Group justify='space-between'>
-                  <Text fw={600} size='sm'>{result.title}</Text>
-                  <Group gap='xs'>
-                    {result.brand && (
-                      <Text size='xs' c='dimmed'>{result.brand}</Text>
-                    )}
-                    {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
-                  </Group>
-                </Group>
+                <IconArrowLeft size={20} />
+              </Button>
+              <Title order={5}>Piyasa Fiyatları</Title>
+            </Group>
+            <Group gap='xs' mt='xs'>
+              <TextInput
+                flex={1}
+                size='sm'
+                placeholder='Ürün adı yazın...'
+                leftSection={<IconSearch size={14} />}
+                value={query}
+                onChange={(e) => setQuery(e.currentTarget.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              />
+              <Button size='sm' color='green' onClick={submit}>
+                Ara
+              </Button>
+            </Group>
+          </>
+        }
+      >
+        {/* Content */}
+        {!submittedQuery ? (
+          <WelcomeScreen products={productsData ?? []} lat={lat} lng={lng} radius={radius} />
+        ) : (
+          <>
+            {isLoading && (
+              <>
+                <Skeleton height={56} radius='md' />
+                <Skeleton height={56} radius='md' />
+                <Skeleton height={56} radius='md' />
+              </>
+            )}
 
-                {isExpanded && result.cheapest_stores.length > 0 && (
-                  <Stack gap={6} mt='xs' pt='xs' style={{ borderTop: '1px solid #f0f0f0' }}>
-                    {result.cheapest_stores.map((store: MarketStore, idx: number) => (
-                      <Group key={idx} justify='space-between' align='center'>
-                        <MarketLogo market={store.market} size={18} />
-                        <Group gap='xs'>
-                          <Text size='sm' fw={600}>₺{store.price.toFixed(2)}</Text>
-                          <Text size='xs' c='dimmed'>{store.unitPrice}</Text>
+            {!isLoading && results.length === 0 && (
+              <Text c='dimmed' ta='center' mt='xl'>
+                Sonuç bulunamadı
+              </Text>
+            )}
+
+            {!isLoading && results.map((result) => {
+              const isExpanded = expanded.has(result.id);
+              return (
+                <Paper
+                  key={result.id}
+                  withBorder
+                  p='sm'
+                  style={{ border: '1px solid #e8f5e9', cursor: 'pointer' }}
+                  onClick={() => toggleExpand(result.id)}
+                  data-testid={`result-card-${result.id}`}
+                >
+                  <Group justify='space-between'>
+                    <Text fw={600} size='sm'>{result.title}</Text>
+                    <Group gap='xs'>
+                      {result.brand && (
+                        <Text size='xs' c='dimmed'>{result.brand}</Text>
+                      )}
+                      {isExpanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                    </Group>
+                  </Group>
+
+                  {isExpanded && result.cheapest_stores.length > 0 && (
+                    <Stack gap={6} mt='xs' pt='xs' style={{ borderTop: '1px solid #f0f0f0' }}>
+                      {result.cheapest_stores.map((store: MarketStore, idx: number) => (
+                        <Group key={idx} justify='space-between' align='center'>
+                          <MarketLogo market={store.market} size={18} />
+                          <Group gap='xs'>
+                            <Text size='sm' fw={600}>₺{store.price.toFixed(2)}</Text>
+                            <Text size='xs' c='dimmed'>{store.unitPrice}</Text>
+                          </Group>
                         </Group>
-                      </Group>
-                    ))}
-                  </Stack>
-                )}
-              </Paper>
-            );
-          })}
-        </Stack>
-      )}
+                      ))}
+                    </Stack>
+                  )}
+                </Paper>
+              );
+            })}
+          </>
+        )}
+      </PageLayout>
     </Box>
   );
 }

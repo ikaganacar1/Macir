@@ -29,6 +29,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import { NumpadInput } from '../components/NumpadInput';
+import PageLayout from '../components/PageLayout';
 import type { Debt, DebtPayment, FinanceEntry } from '../types';
 
 function getIstanbulToday(): string {
@@ -183,33 +184,22 @@ export default function GroceryFinance() {
   });
 
   return (
-    <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
-      <Box
-        p='md'
-        style={{
-          position: 'sticky',
-          top: 0,
-          background: '#f9faf7',
-          zIndex: 10,
-          borderBottom: '1px solid #e8f5e9',
-        }}
-      >
+    <PageLayout
+      header={
         <Group>
           <Button
             variant='subtle'
             color='gray'
             px='xs'
             onClick={() => navigate(-1)}
-            leftSection={<IconArrowLeft size={18} />}
             data-testid='btn-back'
           >
-            {''}
+            <IconArrowLeft size={20} />
           </Button>
           <Title order={4}>Borçlar & Giderler</Title>
         </Group>
-      </Box>
-
+      }
+    >
       <Tabs defaultValue='entries' style={{ flex: 1 }}>
         <Tabs.List px='md' pt='sm'>
           <Tabs.Tab value='entries' data-testid='tab-entries'>
@@ -585,6 +575,6 @@ export default function GroceryFinance() {
           </Button>
         </Stack>
       </Modal>
-    </Stack>
+    </PageLayout>
   );
 }
