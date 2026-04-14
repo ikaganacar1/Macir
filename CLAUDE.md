@@ -48,13 +48,14 @@ Every model (`Category`, `Product`, `StockEntry`, `SaleRecord`, `FinanceEntry`, 
 
 `grocery/signals.py` creates a `StoreProfile` when a new user registers. **New users start with blank products and categories** — the signal no longer auto-seeds defaults. Use `seed_defaults --user <username>` manually if needed.
 
-**Critical for backend tests**: All Category/Product/StockEntry/SaleRecord/FinanceEntry/Debt fixtures need `owner=self.user`. Some test classes still call `.delete()` on Category/Product in `setUp` as a safety measure against future signal changes.
+**Critical for backend tests**: All Category/Product/StockEntry/SaleRecord/FinanceEntry/Debt/ReturnRecord fixtures need `owner=self.user`. Some test classes still call `.delete()` on Category/Product in `setUp` as a safety measure against future signal changes.
 
 ### Frontend Data Flow
 - `src/api.ts` — Axios client; automatically extracts CSRF token from cookies and adds `X-CSRFToken` header on every request. Contains the `endpoints` object with all API URLs.
 - `src/App.tsx` — Auth guard: checks `/api/auth/status/` on mount, renders login or routed app. All pages are lazy-loaded.
 - `src/types.ts` — Shared TypeScript interfaces for all API entities
 - `src/utils/marketLogos.ts` — Maps API market names (e.g. `bim`, `a101`, `tarim_kredi`) to logo paths under `public/market-logos/`
+- `src/utils/format.ts` — Shared pure formatters: `formatCurrency(n)` → `₺12.50`, `formatShortDate(s)` → `5 Nis`, `formatFullDate(s)` → Turkish long form. Use these instead of inline formatters.
 - All server state managed via TanStack Query; cache invalidated by queryKey after mutations
 
 ### Routes
@@ -64,13 +65,17 @@ Every model (`Category`, `Product`, `StockEntry`, `SaleRecord`, `FinanceEntry`, 
 | `/dashboard` | GroceryDashboard | 7-day chart and detailed reports |
 | `/products` | GroceryProducts | Product CRUD with icon upload + market price indicator |
 | `/stock/new` | GroceryAddStock | Restock session form |
-| `/sales/new` | GroceryRecordSales | POS-style sales entry |
+| `/sales/new` | GroceryRecordSales | POS-style sales entry with cash/card toggle |
 | `/sales/history` | GrocerySalesHistory | Full sale history with date filters + product search |
 | `/market-prices` | GroceryMarketPrices | Live market price comparison (proxy to marketfiyati.org.tr) |
 | `/finance` | GroceryFinance | Monthly expenses/income + debt tracking |
+| `/profile` | GroceryProfile | Store location + geofence radius for market price search |
+| `/price-editor` | GroceryPriceEditor | Bulk sell-price editing across all products |
+| `/waste/new` | GroceryWasteEntry | Record spoilage/waste (deducts stock) |
+| `/returns/new` | GroceryReturns | Record customer returns (restores stock) |
 
 ### Backend API (`/backend/grocery/`)
-- `models.py` — Core models: `Category`, `Product`, `StockEntry`/`StockEntryItem`, `SaleRecord`/`SaleItem`, `FinanceEntry`, `Debt`, `DebtPayment`
+- `models.py` — Core models: `Category`, `Product`, `StockEntry`/`StockEntryItem`, `SaleRecord`/`SaleItem` (with `payment_method` cash/card field), `ReturnRecord`/`ReturnItem`, `FinanceEntry`, `Debt`, `DebtPayment`
 - `api.py` — DRF generic views + dashboard endpoint; `_annotate_products()` adds `_stock_level` and `_most_recent_purchase_price` as DB annotations (no N+1). `SaleRecordList` orders by `-date, -pk`.
 - `serializers.py` — Nested serializers using `transaction.atomic()` for parent+items creation; `SaleRecordSerializer.validate()` checks for negative stock (error messages in Turkish). `SaleItemSerializer` includes `product_name` (read-only via `source='product.name'`).
 - `signals.py` — `on_user_created` creates `StoreProfile` only; `seed_defaults()` is available but not called automatically
@@ -79,6 +84,9 @@ Every model (`Category`, `Product`, `StockEntry`, `SaleRecord`, `FinanceEntry`, 
 **API prefix**: `/api/grocery/` for domain resources, `/api/auth/` for session management, `/api/market-prices/` for the external price proxy.
 
 **Auth endpoints**: `GET /api/auth/status/`, `GET /api/auth/csrf/`, `POST /api/auth/login/`, `POST /api/auth/logout/`
+
+**Return endpoints**:
+- `GET/POST /api/grocery/returns/` — list/create return records (restores stock)
 
 **Finance/Debt endpoints**:
 - `GET/POST /api/grocery/finance/` — lists entries for current month (`?month=YYYY-MM`), triggers lazy recurring creation on GET
@@ -97,10 +105,13 @@ Every model (`Category`, `Product`, `StockEntry`, `SaleRecord`, `FinanceEntry`, 
 - `ProductList` supports query params: `?active=false` (include inactive), `?category=<pk>`, `?search=<str>`
 
 ### Frontend UI Patterns
+- `PageLayout` component (`src/components/PageLayout.tsx`) — wraps every page: sticky header, scrollable body, optional fixed footer. Props: `header`, `children`, `footer?`, `footerPadding?` (default 100px). All pages use this.
+- `EmptyState` component (`src/components/EmptyState.tsx`) — centered icon + title + optional subtitle + optional action button. Use for zero-data states (empty lists, no low-stock items, etc.).
 - `NumpadInput` component (`src/components/NumpadInput.tsx`) — mobile-friendly decimal input, max 3 decimal places
+- `@mantine/dates` is installed (`DateInput` used in GroceryFinance); import styles in App.tsx via `import '@mantine/dates/styles.css'`
 - Mantine `useForm` for all forms; Mantine notifications for success/error feedback
-- Modal-based pickers with preset quick-entry buttons for mobile UX
-- Sticky header pattern (not footer) on detail/list pages; back button uses `navigate(-1)`
+- Confirmation modals before destructive/irreversible actions: use `useDisclosure` + standard `Modal` + `useDisclosure` (NOT `@mantine/modals` — not installed)
+- Back buttons: `variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}` — consistent across all pages
 - `recharts` used for the 7-day sales bar chart on the dashboard
 - Helper functions (date formatters, total calculators) are defined at **module level**, not inside the component function — follow this pattern when adding helpers
 
