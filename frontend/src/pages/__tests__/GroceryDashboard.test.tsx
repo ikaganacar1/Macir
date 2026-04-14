@@ -151,14 +151,40 @@ describe('GroceryDashboard', () => {
     });
     const backBtn = screen.getByRole('button', { name: '' });
     fireEvent.click(backBtn);
-    expect(mockNavigate).toHaveBeenCalledWith('/');
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
-  it('shows "Henüz satış yok" when best_sellers is empty', async () => {
+  it('shows EmptyState when best_sellers is empty', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { ...mockData, best_sellers: [] } });
     renderComponent();
     await waitFor(() => {
-      expect(screen.getByText('Henüz satış yok')).toBeInTheDocument();
+      expect(screen.getByText('Bu dönemde satış yok')).toBeInTheDocument();
+    });
+  });
+
+  it('shows chart skeleton while loading', async () => {
+    vi.mocked(api.get).mockImplementation(() => new Promise(() => {})); // never resolves
+    renderComponent();
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="chart-skeleton"]')).toBeInTheDocument();
+    });
+  });
+
+  it('shows EmptyState for best sellers when no sales', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { ...mockData, best_sellers: [], cash_sales: '0', card_sales: '0' },
+    });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Bu dönemde satış yok')).toBeInTheDocument();
+    });
+  });
+
+  it('shows EmptyState for low stock when all normal', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { ...mockData, low_stock: [] } });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Stok seviyeleri normal')).toBeInTheDocument();
     });
   });
 });
