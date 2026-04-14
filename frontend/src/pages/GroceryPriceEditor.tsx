@@ -74,7 +74,7 @@ export default function GroceryPriceEditor() {
       >
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='green' px='xs' onClick={() => navigate(-1)}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Fiyat Düzenle</Title>

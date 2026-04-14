@@ -165,7 +165,7 @@ describe('GroceryProducts', () => {
     // The back arrow button
     const backBtn = screen.getAllByRole('button')[0];
     fireEvent.click(backBtn);
-    expect(mockNavigate).toHaveBeenCalledWith('/');
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
   it('shows preset picker with emoji cards', async () => {

@@ -115,7 +115,7 @@ export default function GroceryWasteEntry() {
       >
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='green' px='xs' onClick={() => navigate(-1)}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Fire/Kayıp Kaydı</Title>
@@ -127,7 +127,7 @@ export default function GroceryWasteEntry() {
       </Box>
 
       <Stack p='md' gap='md' style={{ paddingBottom: selectedCount > 0 ? 100 : 16 }}>
-        <SimpleGrid cols={3} spacing='sm'>
+        <SimpleGrid cols={{ base: 2, sm: 3 }} spacing='sm'>
           {products.map((product) => {
             const isSelected = !!selectedItems[product.pk];
             return (

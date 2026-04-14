@@ -290,7 +290,7 @@ export default function GroceryProducts() {
       >
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='green' px='xs' onClick={() => navigate('/')}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Ürünler</Title>
