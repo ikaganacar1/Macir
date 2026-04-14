@@ -89,20 +89,24 @@ class Product(models.Model):
 
     @property
     def stock_level(self):
-        """Current stock = total received - total sold."""
+        """Current stock = received + returned − sold − wasted."""
         received = (
-            StockEntryItem.objects.filter(product=self).aggregate(
-                total=Sum('quantity')
-            )['total']
-            or 0
+            StockEntryItem.objects.filter(product=self)
+            .aggregate(total=Sum('quantity'))['total'] or 0
         )
         sold = (
-            SaleItem.objects.filter(product=self).aggregate(total=Sum('quantity'))[
-                'total'
-            ]
-            or 0
+            SaleItem.objects.filter(product=self)
+            .aggregate(total=Sum('quantity'))['total'] or 0
         )
-        return received - sold
+        wasted = (
+            WasteItem.objects.filter(product=self)
+            .aggregate(total=Sum('quantity'))['total'] or 0
+        )
+        returned = (
+            ReturnItem.objects.filter(product=self)
+            .aggregate(total=Sum('quantity'))['total'] or 0
+        )
+        return received + returned - sold - wasted
 
     @property
     def most_recent_purchase_price(self):
@@ -179,6 +183,15 @@ class SaleRecord(models.Model):
     )
     date = models.DateField(verbose_name=_('Date'))
     notes = models.TextField(blank=True, default='', verbose_name=_('Notes'))
+    PAYMENT_CASH = 'cash'
+    PAYMENT_CARD = 'card'
+    PAYMENT_CHOICES = [(PAYMENT_CASH, 'Nakit'), (PAYMENT_CARD, 'Kart')]
+    payment_method = models.CharField(
+        max_length=10,
+        choices=PAYMENT_CHOICES,
+        default=PAYMENT_CASH,
+        verbose_name=_('Payment Method'),
+    )
 
     class Meta:
         ordering = ['-date']
@@ -221,6 +234,133 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f'{self.product.name} x{self.quantity} @ {self.sell_price}'
+
+
+class WasteEntry(models.Model):
+    """A spoilage/waste recording session."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='waste_entries',
+        verbose_name=_('Owner'),
+    )
+    date = models.DateField(verbose_name=_('Date'))
+    notes = models.TextField(blank=True, default='', verbose_name=_('Notes'))
+
+    class Meta:
+        ordering = ['-date', '-pk']
+        verbose_name = _('Waste Entry')
+        verbose_name_plural = _('Waste Entries')
+
+    def __str__(self):
+        return f'Waste {self.date}'
+
+
+class WasteItem(models.Model):
+    """One product line within a WasteEntry."""
+
+    REASON_SPOILED = 'spoiled'
+    REASON_DAMAGED = 'damaged'
+    REASON_EXPIRED = 'expired'
+    REASON_OTHER = 'other'
+    REASON_CHOICES = [
+        (REASON_SPOILED, 'Bozuldu'),
+        (REASON_DAMAGED, 'Hasarlı'),
+        (REASON_EXPIRED, 'Son kullanma tarihi geçti'),
+        (REASON_OTHER, 'Diğer'),
+    ]
+
+    entry = models.ForeignKey(
+        WasteEntry,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name=_('Entry'),
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name='waste_items',
+        verbose_name=_('Product'),
+    )
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
+        validators=[MinValueValidator(0)],
+    )
+    reason = models.CharField(
+        max_length=20,
+        choices=REASON_CHOICES,
+        default=REASON_SPOILED,
+        verbose_name=_('Reason'),
+    )
+
+    class Meta:
+        verbose_name = _('Waste Item')
+        verbose_name_plural = _('Waste Items')
+
+    def __str__(self):
+        return f'{self.product.name} x{self.quantity} ({self.reason})'
+
+
+class ReturnRecord(models.Model):
+    """A customer return/refund session."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='return_records',
+        verbose_name=_('Owner'),
+    )
+    date = models.DateField(verbose_name=_('Date'))
+    original_sale = models.ForeignKey(
+        SaleRecord,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='returns',
+        verbose_name=_('Original Sale'),
+    )
+    notes = models.TextField(blank=True, default='', verbose_name=_('Notes'))
+
+    class Meta:
+        ordering = ['-date', '-pk']
+        verbose_name = _('Return Record')
+        verbose_name_plural = _('Return Records')
+
+    def __str__(self):
+        return f'Return {self.date}'
+
+
+class ReturnItem(models.Model):
+    """One product line within a ReturnRecord."""
+
+    record = models.ForeignKey(
+        ReturnRecord,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name=_('Record'),
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name='return_items',
+        verbose_name=_('Product'),
+    )
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
+        validators=[MinValueValidator(0)],
+    )
+    refund_price = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_('Refund Price per Unit'),
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        verbose_name = _('Return Item')
+        verbose_name_plural = _('Return Items')
+
+    def __str__(self):
+        return f'{self.product.name} x{self.quantity} @ {self.refund_price}'
 
 
 class StoreProfile(models.Model):

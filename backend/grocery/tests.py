@@ -910,3 +910,43 @@ class LoginLockoutTest(APITestCase):
             format='json',
         )
         self.assertEqual(r.status_code, 200)
+
+
+class WasteEntryModelTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='waste_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Sebze', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Domates', category=self.cat, unit='kg', sell_price='18', owner=self.user
+        )
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='10', purchase_price='12')
+
+    def test_waste_reduces_stock(self):
+        from grocery.models import WasteEntry, WasteItem
+        we = WasteEntry.objects.create(date='2026-04-14', owner=self.user)
+        WasteItem.objects.create(entry=we, product=self.product, quantity='3', reason='spoiled')
+        self.assertEqual(self.product.stock_level, 7)  # 10 - 3
+
+
+class ReturnRecordModelTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='return_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Sebze', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Salatalık', category=self.cat, unit='kg', sell_price='15', owner=self.user
+        )
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='10', purchase_price='10')
+        sale = SaleRecord.objects.create(date='2026-04-14', owner=self.user)
+        SaleItem.objects.create(sale=sale, product=self.product, quantity='5', sell_price='15')
+
+    def test_return_increases_stock(self):
+        from grocery.models import ReturnRecord, ReturnItem
+        rr = ReturnRecord.objects.create(date='2026-04-14', owner=self.user)
+        ReturnItem.objects.create(record=rr, product=self.product, quantity='2', refund_price='15')
+        self.assertEqual(self.product.stock_level, 7)  # 10 - 5 + 2
