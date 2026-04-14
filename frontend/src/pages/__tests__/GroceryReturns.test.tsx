@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
@@ -61,5 +61,13 @@ describe('GroceryReturns', () => {
     renderPage();
     await screen.findByText('Elma');
     expect(screen.queryByRole('button', { name: /kaydet/i })).not.toBeInTheDocument();
+  });
+
+  it('save confirmation modal is not shown by default', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: mockProducts });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.queryByText('Kayıt onayı')).not.toBeInTheDocument();
+    });
   });
 });

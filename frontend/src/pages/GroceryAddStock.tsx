@@ -108,7 +108,7 @@ export default function GroceryAddStock() {
       navigate('/');
     },
     onError: () => {
-      notifications.show({ message: 'Kayıt başarısız', color: 'red' });
+      notifications.show({ message: 'Stok girişi kaydedilemedi', color: 'red' });
     },
   });
 

@@ -142,8 +142,12 @@ export default function GroceryRecordSales() {
       notifications.show({ message: 'Satış kaydedildi!', color: 'green' });
       navigate('/');
     },
-    onError: () => {
-      notifications.show({ message: 'Satış kaydedilemedi', color: 'red' });
+    onError: (err: any) => {
+      const msg =
+        err?.response?.data?.items?.[0] ??
+        err?.response?.data?.detail ??
+        'Satış kaydedilemedi — stok yetersiz olabilir';
+      notifications.show({ message: msg, color: 'red' });
     },
   });
 

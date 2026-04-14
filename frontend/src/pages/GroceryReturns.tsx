@@ -40,6 +40,7 @@ export default function GroceryReturns() {
   const [modalQty, setModalQty] = useState('0');
   const [modalPrice, setModalPrice] = useState(0);
   const [opened, { open, close }] = useDisclosure(false);
+  const [confirmOpen, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products'],
@@ -134,7 +135,7 @@ export default function GroceryReturns() {
             c='blue'
             size='md'
             fullWidth
-            onClick={() => saveMutation.mutate()}
+            onClick={openConfirm}
             loading={saveMutation.isPending}
           >
             Kaydet →
@@ -186,6 +187,29 @@ export default function GroceryReturns() {
           );
         })}
       </SimpleGrid>
+
+      <Modal
+        opened={confirmOpen}
+        onClose={closeConfirm}
+        title='Kayıt onayı'
+        centered
+        size='sm'
+      >
+        <Stack gap='md'>
+          <Text size='sm'>{selectedCount} ürün kaydedilecek. Devam edilsin mi?</Text>
+          <Group justify='flex-end'>
+            <Button variant='default' onClick={closeConfirm}>İptal</Button>
+            <Button
+              color='blue'
+              loading={saveMutation.isPending}
+              onClick={() => { closeConfirm(); saveMutation.mutate(); }}
+              data-testid='btn-confirm-save'
+            >
+              Kaydet
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal opened={opened} onClose={close} title={modalProduct?.name} centered size='sm'>
         {modalProduct && (
