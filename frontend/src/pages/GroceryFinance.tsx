@@ -16,10 +16,16 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import { DateInput } from '@mantine/dates';
+import dayjs from 'dayjs';
+import 'dayjs/locale/tr';
 import {
   IconArrowLeft,
   IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
   IconChevronUp,
   IconPlus,
   IconTrash,
@@ -80,6 +86,9 @@ export default function GroceryFinance() {
   const [paymentDate, setPaymentDate] = useState(getIstanbulToday());
   const [paymentNotes, setPaymentNotes] = useState('');
 
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'entry' | 'debt'; pk: number } | null>(null);
+  const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
+
   const { data: entries = [], isLoading: entriesLoading } = useQuery<FinanceEntry[]>({
     queryKey: ['finance-entries', monthParam],
     queryFn: () =>
@@ -118,7 +127,7 @@ export default function GroceryFinance() {
       setEntryNotes('');
       notifications.show({ message: 'Kayıt eklendi', color: 'green' });
     },
-    onError: () => notifications.show({ message: 'Hata oluştu', color: 'red' }),
+    onError: () => notifications.show({ message: 'Kayıt eklenemedi', color: 'red' }),
   });
 
   const { mutate: deleteEntry } = useMutation({
@@ -127,7 +136,7 @@ export default function GroceryFinance() {
       queryClient.invalidateQueries({ queryKey: ['finance-entries'] });
       queryClient.invalidateQueries({ queryKey: ['grocery-dashboard-today'] });
     },
-    onError: () => notifications.show({ message: 'Silinemedi', color: 'red' }),
+    onError: () => notifications.show({ message: 'Kayıt silinemedi', color: 'red' }),
   });
 
   const { mutate: addDebt, isPending: addingDebt } = useMutation({
@@ -149,7 +158,7 @@ export default function GroceryFinance() {
       setDebtNotes('');
       notifications.show({ message: 'Borç eklendi', color: 'green' });
     },
-    onError: () => notifications.show({ message: 'Hata oluştu', color: 'red' }),
+    onError: () => notifications.show({ message: 'Borç eklenemedi', color: 'red' }),
   });
 
   const { mutate: addPayment, isPending: addingPayment } = useMutation({
@@ -221,7 +230,7 @@ export default function GroceryFinance() {
                 onClick={() => setMonthOffset((o) => o - 1)}
                 data-testid='btn-prev-month'
               >
-                <IconChevronUp size={16} style={{ transform: 'rotate(-90deg)' }} />
+                <IconChevronLeft size={16} />
               </ActionIcon>
               <Text fw={600} size='sm' data-testid='month-label'>
                 {getMonthLabel(monthParam)}
@@ -233,7 +242,7 @@ export default function GroceryFinance() {
                 disabled={monthOffset >= 0}
                 data-testid='btn-next-month'
               >
-                <IconChevronDown size={16} style={{ transform: 'rotate(-90deg)' }} />
+                <IconChevronRight size={16} />
               </ActionIcon>
             </Group>
 
@@ -301,7 +310,10 @@ export default function GroceryFinance() {
                         color='red'
                         size='sm'
                         data-testid={`btn-delete-entry-${entry.pk}`}
-                        onClick={() => deleteEntry(entry.pk)}
+                        onClick={() => {
+                          setDeleteTarget({ type: 'entry', pk: entry.pk });
+                          openDeleteConfirm();
+                        }}
                       >
                         <IconTrash size={14} />
                       </ActionIcon>
@@ -478,10 +490,12 @@ export default function GroceryFinance() {
             onChange={(e) => setEntryRecurring(e.currentTarget.checked)}
             data-testid='switch-recurring'
           />
-          <TextInput
+          <DateInput
             label='Tarih'
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.currentTarget.value)}
+            value={entryDate ? new Date(entryDate + 'T00:00:00') : null}
+            onChange={(d) => setEntryDate(d ? dayjs(d).format('YYYY-MM-DD') : '')}
+            valueFormat='YYYY-MM-DD'
+            locale='tr'
           />
           <TextInput
             label='Not (isteğe bağlı)'
@@ -523,10 +537,12 @@ export default function GroceryFinance() {
             Aylık Ödeme
           </Text>
           <NumpadInput value={debtMonthly} onChange={setDebtMonthly} />
-          <TextInput
+          <DateInput
             label='Başlangıç Tarihi'
-            value={debtStartDate}
-            onChange={(e) => setDebtStartDate(e.currentTarget.value)}
+            value={debtStartDate ? new Date(debtStartDate + 'T00:00:00') : null}
+            onChange={(d) => setDebtStartDate(d ? dayjs(d).format('YYYY-MM-DD') : '')}
+            valueFormat='YYYY-MM-DD'
+            locale='tr'
           />
           <TextInput
             label='Not (isteğe bağlı)'
@@ -554,10 +570,12 @@ export default function GroceryFinance() {
       >
         <Stack gap='sm'>
           <NumpadInput value={paymentAmount} onChange={setPaymentAmount} />
-          <TextInput
+          <DateInput
             label='Tarih'
-            value={paymentDate}
-            onChange={(e) => setPaymentDate(e.currentTarget.value)}
+            value={paymentDate ? new Date(paymentDate + 'T00:00:00') : null}
+            onChange={(d) => setPaymentDate(d ? dayjs(d).format('YYYY-MM-DD') : '')}
+            valueFormat='YYYY-MM-DD'
+            locale='tr'
           />
           <TextInput
             label='Not (isteğe bağlı)'
@@ -573,6 +591,32 @@ export default function GroceryFinance() {
           >
             Kaydet
           </Button>
+        </Stack>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal
+        opened={deleteConfirmOpen}
+        onClose={closeDeleteConfirm}
+        title='Emin misiniz?'
+        centered
+        size='sm'
+      >
+        <Stack gap='md'>
+          <Text size='sm'>Bu kayıt kalıcı olarak silinecek.</Text>
+          <Group justify='flex-end'>
+            <Button variant='default' onClick={closeDeleteConfirm}>İptal</Button>
+            <Button
+              color='red'
+              data-testid='btn-confirm-delete'
+              onClick={() => {
+                if (deleteTarget?.type === 'entry') deleteEntry(deleteTarget.pk);
+                closeDeleteConfirm();
+              }}
+            >
+              Sil
+            </Button>
+          </Group>
         </Stack>
       </Modal>
     </PageLayout>

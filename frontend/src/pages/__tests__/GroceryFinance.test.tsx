@@ -239,4 +239,43 @@ describe('GroceryFinance', () => {
       expect(screen.getByTestId('input-debt-name')).toBeInTheDocument();
     });
   });
+
+  it('delete entry button opens confirmation modal', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (String(url).includes('debts')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: mockEntries });
+    });
+    renderComponent();
+    const deleteBtn = await screen.findByTestId('btn-delete-entry-1');
+    fireEvent.click(deleteBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Emin misiniz?')).toBeInTheDocument();
+      expect(screen.getByText('Bu kayıt kalıcı olarak silinecek.')).toBeInTheDocument();
+    });
+  });
+
+  it('confirming delete calls api.delete', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (String(url).includes('debts')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: mockEntries });
+    });
+    vi.mocked(api.delete).mockResolvedValue({});
+    renderComponent();
+    const deleteBtn = await screen.findByTestId('btn-delete-entry-1');
+    fireEvent.click(deleteBtn);
+    const confirmBtn = await screen.findByTestId('btn-confirm-delete');
+    fireEvent.click(confirmBtn);
+    await waitFor(() => {
+      expect(api.delete).toHaveBeenCalledWith('/api/grocery/finance/1/');
+    });
+  });
+
+  it('prev month button uses left chevron icon', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+    renderComponent();
+    const prevBtn = await screen.findByTestId('btn-prev-month');
+    // IconChevronLeft renders as an SVG — verify the rotate transform is gone
+    const svg = prevBtn.querySelector('svg');
+    expect(svg).not.toHaveStyle('transform: rotate(-90deg)');
+  });
 });
