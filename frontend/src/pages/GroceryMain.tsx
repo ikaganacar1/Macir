@@ -14,6 +14,7 @@ import {
   IconAlertTriangle,
   IconArrowBackUp,
   IconChartBar,
+  IconCircleCheck,
   IconClipboardList,
   IconFlame,
   IconPackage,
@@ -22,6 +23,7 @@ import {
   IconShoppingCart,
   IconWallet,
 } from '@tabler/icons-react';
+import EmptyState from '../components/EmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
@@ -33,7 +35,7 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
 
-  const { data: stats } = useQuery<DashboardData>({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard-today', today],
     queryFn: () =>
       api.get(endpoints.dashboard, { params: { range: 'today', date: today } }).then((r) => r.data),
@@ -91,9 +93,13 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           data-testid="stat-sales"
         >
           <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Bugün Satış</Text>
-          <Text size='xl' fw={700} c='green'>
-            ₺{stats ? parseFloat(String(stats.total_sales)).toFixed(2) : '0.00'}
-          </Text>
+          {statsLoading ? (
+            <Skeleton height={36} width={90} radius='md' />
+          ) : (
+            <Text size='xl' fw={700} c='green'>
+              ₺{parseFloat(String(stats?.total_sales ?? 0)).toFixed(2)}
+            </Text>
+          )}
         </Paper>
         <Paper
           withBorder
@@ -103,9 +109,13 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           data-testid="stat-profit"
         >
           <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Kâr</Text>
-          <Text size='xl' fw={700} c='green'>
-            ₺{stats ? parseFloat(String(stats.net_profit)).toFixed(2) : '0.00'}
-          </Text>
+          {statsLoading ? (
+            <Skeleton height={36} width={90} radius='md' />
+          ) : (
+            <Text size='xl' fw={700} c='green'>
+              ₺{parseFloat(String(stats?.net_profit ?? 0)).toFixed(2)}
+            </Text>
+          )}
         </Paper>
       </SimpleGrid>
 
@@ -119,9 +129,13 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           data-testid='stat-monthly-expenses'
         >
           <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Aylık Gider</Text>
-          <Text size='xl' fw={700} c='red'>
-            ₺{stats ? parseFloat(String(stats.monthly_expenses ?? 0)).toFixed(2) : '0.00'}
-          </Text>
+          {statsLoading ? (
+            <Skeleton height={36} width={90} radius='md' />
+          ) : (
+            <Text size='xl' fw={700} c='red'>
+              ₺{parseFloat(String(stats?.monthly_expenses ?? 0)).toFixed(2)}
+            </Text>
+          )}
         </Paper>
         <Paper
           withBorder
@@ -131,13 +145,25 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
           data-testid='stat-debt-remaining'
         >
           <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Kalan Borç</Text>
-          <Text size='xl' fw={700} c='orange'>
-            ₺{stats ? parseFloat(String(stats.total_debt_remaining ?? 0)).toFixed(2) : '0.00'}
-          </Text>
+          {statsLoading ? (
+            <Skeleton height={36} width={90} radius='md' />
+          ) : (
+            <Text size='xl' fw={700} c='orange'>
+              ₺{parseFloat(String(stats?.total_debt_remaining ?? 0)).toFixed(2)}
+            </Text>
+          )}
         </Paper>
       </SimpleGrid>
 
-      {/* Low stock alert — only if low_stock > 0, taps to Stok Ekle */}
+      {/* Low stock empty state — shown when loaded and no issues */}
+      {!statsLoading && lowStockCount === 0 && (
+        <EmptyState
+          icon={IconCircleCheck}
+          title='Stok seviyeleri normal'
+          subtitle='Tüm ürünler yeterli stokta'
+        />
+      )}
+      {/* Low stock alert — shown when there are issues */}
       {lowStockCount > 0 && (
         <Box
           p='sm'
@@ -148,7 +174,7 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
             cursor: 'pointer',
           }}
           onClick={() => navigate('/stock/new')}
-          data-testid="low-stock-alert"
+          data-testid='low-stock-alert'
         >
           <Group gap='xs'>
             <IconAlertTriangle size={18} color='var(--mantine-color-orange-6)' />
@@ -159,30 +185,31 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         </Box>
       )}
 
-      {/* Primary action — Satış Yap */}
-      <Button
-        color='green'
-        size='xl'
-        h={70}
-        leftSection={<IconShoppingCart size={26} />}
-        onClick={() => navigate('/sales/new')}
-        data-testid="btn-sales"
-      >
-        <Text size='lg' fw={700}>Satış Yap</Text>
-      </Button>
-
-      {/* Secondary action — Stok Ekle */}
-      <Button
-        variant='light'
-        color='green'
-        size='lg'
-        h={56}
-        leftSection={<IconPackage size={22} />}
-        onClick={() => navigate('/stock/new')}
-        data-testid="btn-stock"
-      >
-        Stok Ekle
-      </Button>
+      {/* Quick actions — 2-column grid */}
+      <SimpleGrid cols={2} spacing='sm'>
+        <Button
+          color='green'
+          variant='filled'
+          size='lg'
+          h={70}
+          leftSection={<IconShoppingCart size={22} />}
+          onClick={() => navigate('/sales/new')}
+          data-testid='btn-sales'
+        >
+          <Text size='lg' fw={700}>Satış Yap</Text>
+        </Button>
+        <Button
+          variant='light'
+          color='green'
+          size='lg'
+          h={70}
+          leftSection={<IconPackage size={22} />}
+          onClick={() => navigate('/stock/new')}
+          data-testid='btn-stock'
+        >
+          Stok Ekle
+        </Button>
+      </SimpleGrid>
 
       {/* Tertiary actions */}
       <SimpleGrid cols={2} spacing='sm'>
@@ -270,7 +297,7 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
             {[1, 2, 3].map((i) => <Skeleton key={i} h={36} radius='md' />)}
           </Stack>
         ) : recentSales.length === 0 ? (
-          <Text size='sm' c='dimmed' ta='center' py='sm'>Henüz satış yok</Text>
+          <EmptyState icon={IconShoppingBag} title='Henüz satış yok' />
         ) : (
           <Stack gap={4}>
             {recentSales.map((record) => (

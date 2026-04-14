@@ -225,6 +225,37 @@ describe('GroceryMain', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/returns/new');
   });
 
+  it('shows EmptyState when no recent sales', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (String(url).includes('sale-records')) {
+        return Promise.resolve({ data: [] });
+      }
+      return Promise.resolve({ data: mockStats });
+    });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Henüz satış yok')).toBeInTheDocument();
+    });
+  });
+
+  it('shows low-stock EmptyState when all stocks are normal', async () => {
+    renderComponent(); // mockStats has low_stock: []
+    await waitFor(() => {
+      expect(screen.getByText('Stok seviyeleri normal')).toBeInTheDocument();
+    });
+  });
+
+  it('btn-sales and btn-stock are in the quick-actions grid (not separate tall buttons)', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-sales')).toBeInTheDocument();
+      expect(screen.getByTestId('btn-stock')).toBeInTheDocument();
+    });
+    // Both should still navigate correctly
+    fireEvent.click(screen.getByTestId('btn-sales'));
+    expect(mockNavigate).toHaveBeenCalledWith('/sales/new');
+  });
+
   it('btn-profile navigates to /profile', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url.includes('dashboard')) return Promise.resolve({ data: mockStats });
