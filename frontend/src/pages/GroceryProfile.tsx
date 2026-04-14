@@ -2,11 +2,14 @@ import {
   Box,
   Button,
   Group,
+  Modal,
   Paper,
   SimpleGrid,
+  Stack,
   Text,
   Title,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconCurrentLocation } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,6 +56,8 @@ export default function GroceryProfile() {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [unsavedOpen, { open: openUnsaved, close: closeUnsaved }] = useDisclosure(false);
 
   // Use loaded values as defaults if user hasn't changed them yet
   const currentLat = lat ?? profile?.latitude ?? 41.0082;
@@ -74,6 +79,7 @@ export default function GroceryProfile() {
       queryClient.invalidateQueries({ queryKey: ['store-profile'] });
       queryClient.invalidateQueries({ queryKey: ['market-prices'] });
       notifications.show({ message: 'Konum kaydedildi', color: 'green' });
+      setIsDirty(false);
     },
     onError: () => {
       notifications.show({ message: 'Kaydedilemedi', color: 'red' });
@@ -86,14 +92,28 @@ export default function GroceryProfile() {
     coordsRef.current = { lat: parsedLat, lng: parsedLng, radius: coordsRef.current.radius };
     setLat(parsedLat);
     setLng(parsedLng);
+    setIsDirty(true);
+  }
+
+  if (typeof window !== 'undefined') {
+    (window as any).__simulateMapClick = handleMapClick;
   }
 
   function handleGeolocate() {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setLat(parseFloat(pos.coords.latitude.toFixed(6)));
-      setLng(parseFloat(pos.coords.longitude.toFixed(6)));
-    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(parseFloat(pos.coords.latitude.toFixed(6)));
+        setLng(parseFloat(pos.coords.longitude.toFixed(6)));
+        setIsDirty(true);
+      },
+      () => {
+        notifications.show({
+          message: 'Konum izni reddedildi. Tarayıcı ayarlarından izin verin.',
+          color: 'orange',
+        });
+      }
+    );
   }
 
   return (
@@ -106,7 +126,13 @@ export default function GroceryProfile() {
                 variant='subtle'
                 color='gray'
                 px='xs'
-                onClick={() => navigate(-1)}
+                onClick={() => {
+                  if (isDirty) {
+                    openUnsaved();
+                  } else {
+                    navigate(-1);
+                  }
+                }}
                 data-testid='btn-back'
               >
                 <IconArrowLeft size={20} />
@@ -165,7 +191,7 @@ export default function GroceryProfile() {
               variant={currentRadius === r ? 'filled' : 'default'}
               color='green'
               size='xs'
-              onClick={() => setRadius(r)}
+              onClick={() => { setRadius(r); setIsDirty(true); }}
               data-testid={`radius-${r}`}
             >
               {r} km
@@ -177,6 +203,28 @@ export default function GroceryProfile() {
           Haritaya dokunarak mağaza konumunuzu ayarlayın. Yakın marketlerin fiyatları önce gösterilir.
         </Text>
       </PageLayout>
+
+      <Modal
+        opened={unsavedOpen}
+        onClose={closeUnsaved}
+        title='Kaydedilmemiş değişiklikler'
+        centered
+        size='sm'
+      >
+        <Stack gap='md'>
+          <Text size='sm'>Kaydedilmemiş değişiklikler var. Çıkmak istiyor musunuz?</Text>
+          <Group justify='flex-end'>
+            <Button variant='default' onClick={closeUnsaved}>İptal</Button>
+            <Button
+              color='gray'
+              onClick={() => navigate(-1)}
+              data-testid='btn-confirm-leave'
+            >
+              Çık
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Box>
   );
 }

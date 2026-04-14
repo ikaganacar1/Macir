@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -136,5 +136,49 @@ describe('GroceryProfile', () => {
     await waitFor(() => {
       expect(api.patch).toHaveBeenCalled();
     });
+  });
+
+  it('shows notification when geolocation is denied', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: mockProfile });
+    const mockGeo = {
+      getCurrentPosition: vi.fn((_success: Function, error: Function) => {
+        error(new Error('denied'));
+      }),
+    };
+    Object.defineProperty(global.navigator, 'geolocation', {
+      value: mockGeo,
+      configurable: true,
+    });
+
+    renderComponent();
+    const geoBtn = await screen.findByText('Konumumu Kullan');
+    fireEvent.click(geoBtn);
+    await waitFor(() => {
+      expect(screen.getByText(/Konum izni reddedildi/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows unsaved changes modal when back is clicked after changes', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: mockProfile });
+    renderComponent();
+    await screen.findByTestId('btn-back');
+
+    // Simulate a map click to dirty the form
+    act(() => {
+      (window as any).__simulateMapClick(41.0, 29.0);
+    });
+
+    fireEvent.click(screen.getByTestId('btn-back'));
+    await waitFor(() => {
+      expect(screen.getByText('Kaydedilmemiş değişiklikler')).toBeInTheDocument();
+    });
+  });
+
+  it('navigates back immediately when back is clicked and form is clean', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: mockProfile });
+    renderComponent();
+    const backBtn = await screen.findByTestId('btn-back');
+    fireEvent.click(backBtn);
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 });
