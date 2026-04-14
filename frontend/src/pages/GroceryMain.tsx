@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import {
   IconAlertTriangle,
+  IconArrowBackUp,
   IconChartBar,
   IconClipboardList,
   IconFlame,
@@ -235,6 +236,17 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         data-testid='btn-waste'
       >
         Fire/Kayıp Kaydı
+      </Button>
+
+      <Button
+        variant='default'
+        h={56}
+        fullWidth
+        leftSection={<IconArrowBackUp size={20} />}
+        onClick={() => navigate('/returns/new')}
+        data-testid='btn-returns'
+      >
+        İade Al
       </Button>
 
       {/* Son Satışlar */}
