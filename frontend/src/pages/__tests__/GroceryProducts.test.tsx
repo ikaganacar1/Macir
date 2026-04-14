@@ -150,7 +150,7 @@ describe('GroceryProducts', () => {
     await waitFor(() => {
       expect(screen.getByText('Domates')).toBeInTheDocument();
     });
-    const editButtons = screen.getAllByRole('button', { name: /Düzenle/i });
+    const editButtons = screen.getAllByRole('button', { name: /^Düzenle$/i });
     fireEvent.click(editButtons[0]);
     await waitFor(() => {
       expect(screen.getByText('Ürünü Düzenle')).toBeInTheDocument();

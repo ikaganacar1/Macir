@@ -17,7 +17,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconEdit, IconPlus, IconSearch, IconUpload } from '@tabler/icons-react';
+import { IconArrowLeft, IconEdit, IconPlus, IconSearch, IconTag, IconUpload } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -295,9 +295,20 @@ export default function GroceryProducts() {
             </Button>
             <Title order={4}>Ürünler</Title>
           </Group>
-          <Button leftSection={<IconPlus size={16} />} onClick={openPicker} size='sm' color='green'>
-            Ürün Ekle
-          </Button>
+          <Group gap='xs'>
+            <Button
+              variant='light'
+              color='green'
+              size='sm'
+              leftSection={<IconTag size={16} />}
+              onClick={() => navigate('/products/prices')}
+            >
+              Fiyatları Düzenle
+            </Button>
+            <Button leftSection={<IconPlus size={16} />} onClick={openPicker} size='sm' color='green'>
+              Ürün Ekle
+            </Button>
+          </Group>
         </Group>
       </Box>
 
