@@ -26,7 +26,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { DashboardData, SaleRecord } from '../types';
-import { recordTotal, trFullDate } from '../utils/sales';
+import { recordTotal } from '../utils/sales';
+import { formatFullDate } from '../utils/format';
 
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
@@ -285,7 +286,7 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
                   border: '1px solid #e8f5e9',
                 }}
               >
-                <Text size='sm' c='dimmed'>{trFullDate(record.date)}</Text>
+                <Text size='sm' c='dimmed'>{formatFullDate(record.date)}</Text>
                 <Text size='sm' fw={600} c='green'>₺{recordTotal(record)}</Text>
               </Group>
             ))}

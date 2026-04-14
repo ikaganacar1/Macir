@@ -19,7 +19,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { SaleRecord } from '../types';
-import { recordTotal, trFullDate } from '../utils/sales';
+import { recordTotal } from '../utils/sales';
+import { formatFullDate } from '../utils/format';
 
 type DateRange = 'all' | 'today' | 'week' | 'month';
 
@@ -171,7 +172,7 @@ export default function GrocerySalesHistory() {
                   data-testid={`sale-card-${record.pk}`}
                   onClick={() => toggleExpanded(record.pk)}
                 >
-                  <Text size='sm'>{trFullDate(record.date)}</Text>
+                  <Text size='sm'>{formatFullDate(record.date)}</Text>
                   <Group gap='xs'>
                     <Text size='sm' fw={700} c='green'>₺{recordTotal(record)}</Text>
                     {isOpen

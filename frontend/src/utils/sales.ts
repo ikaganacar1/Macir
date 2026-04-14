@@ -7,12 +7,3 @@ export function recordTotal(record: SaleRecord): string {
   );
   return total.toFixed(2);
 }
-
-export function trFullDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('tr-TR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
