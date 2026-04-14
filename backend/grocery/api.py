@@ -39,6 +39,7 @@ from grocery.serializers import (
     DebtSerializer,
     FinanceEntrySerializer,
     ProductSerializer,
+    ReturnRecordSerializer,
     SaleRecordSerializer,
     StockEntrySerializer,
     StoreProfileSerializer,
@@ -192,6 +193,25 @@ class WasteEntryDetail(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return WasteEntry.objects.filter(owner=self.request.user).prefetch_related('items__product')
+
+
+class ReturnRecordList(generics.ListCreateAPIView):
+    serializer_class = ReturnRecordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ReturnRecord.objects.filter(owner=self.request.user).prefetch_related('items__product')
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
+class ReturnRecordDetail(generics.RetrieveAPIView):
+    serializer_class = ReturnRecordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ReturnRecord.objects.filter(owner=self.request.user).prefetch_related('items__product')
 
 
 class SaleRecordList(generics.ListCreateAPIView):
@@ -583,4 +603,6 @@ grocery_api_urls = [
     path('debts/<int:debt_pk>/payments/<int:pk>/', DebtPaymentDetail.as_view(), name='api-grocery-debt-payment-detail'),
     path('waste-entries/', WasteEntryList.as_view(), name='api-grocery-waste-entry-list'),
     path('waste-entries/<int:pk>/', WasteEntryDetail.as_view(), name='api-grocery-waste-entry-detail'),
+    path('returns/', ReturnRecordList.as_view(), name='api-grocery-return-record-list'),
+    path('returns/<int:pk>/', ReturnRecordDetail.as_view(), name='api-grocery-return-record-detail'),
 ]

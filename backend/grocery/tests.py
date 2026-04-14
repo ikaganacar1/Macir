@@ -1066,3 +1066,68 @@ class WasteEntryAPITest(APITestCase):
         WasteItem.objects.create(entry=we, product=other_product, quantity='1', reason='spoiled')
         r = self.client.get('/api/grocery/waste-entries/')
         self.assertEqual(len(r.data), 0)
+
+
+class ReturnRecordAPITest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='return_api_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Meyve', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Elma', category=self.cat, unit='kg', sell_price='30', owner=self.user
+        )
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='10', purchase_price='20')
+        self.sale = SaleRecord.objects.create(date='2026-04-14', owner=self.user)
+        SaleItem.objects.create(sale=self.sale, product=self.product, quantity='5', sell_price='30')
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_return_record(self):
+        r = self.client.post('/api/grocery/returns/', {
+            'date': '2026-04-14',
+            'original_sale': self.sale.pk,
+            'notes': 'Müşteri iade etti',
+            'items': [{'product': self.product.pk, 'quantity': '2', 'refund_price': '30.00'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(len(r.data['items']), 1)
+
+    def test_create_return_without_original_sale(self):
+        r = self.client.post('/api/grocery/returns/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '1', 'refund_price': '28.00'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertIsNone(r.data['original_sale'])
+
+    def test_return_requires_at_least_one_item(self):
+        r = self.client.post('/api/grocery/returns/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [],
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_return_increases_stock(self):
+        self.client.post('/api/grocery/returns/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '2', 'refund_price': '30'}],
+        }, format='json')
+        r = self.client.get('/api/grocery/products/')
+        product_data = next(p for p in r.data if p['name'] == 'Elma')
+        # 10 received - 5 sold + 2 returned = 7
+        self.assertEqual(float(product_data['stock_level']), 7.0)
+
+    def test_list_returns_isolated_by_owner(self):
+        other_user = User.objects.create_user(username='other_return', password='p')
+        other_product = Product.objects.create(name='Portakal', unit='kg', sell_price='20', owner=other_user)
+        other_entry = StockEntry.objects.create(date='2026-04-14', owner=other_user)
+        StockEntryItem.objects.create(entry=other_entry, product=other_product, quantity='5', purchase_price='15')
+        from grocery.models import ReturnRecord, ReturnItem
+        rr = ReturnRecord.objects.create(date='2026-04-14', owner=other_user)
+        ReturnItem.objects.create(record=rr, product=other_product, quantity='1', refund_price='20')
+        r = self.client.get('/api/grocery/returns/')
+        self.assertEqual(len(r.data), 0)

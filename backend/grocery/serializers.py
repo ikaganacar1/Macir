@@ -14,6 +14,7 @@ from grocery.models import (
     FinanceEntry,
     Product,
     ReturnItem,
+    ReturnRecord,
     SaleItem,
     SaleRecord,
     StockEntry,
@@ -246,6 +247,59 @@ class WasteEntrySerializer(serializers.ModelSerializer):
             for item in items_data:
                 WasteItem.objects.create(entry=entry, **item)
         return entry
+
+    def update(self, instance, validated_data):
+        validated_data.pop('items', None)
+        return super().update(instance, validated_data)
+
+
+class ReturnItemSerializer(serializers.ModelSerializer):
+    """Serializer for ReturnItem."""
+
+    class Meta:
+        model = ReturnItem
+        fields = ['pk', 'product', 'quantity', 'refund_price']
+
+
+class ReturnRecordSerializer(serializers.ModelSerializer):
+    """Serializer for ReturnRecord with nested items."""
+
+    items = ReturnItemSerializer(many=True)
+    date = serializers.DateField(required=False)
+
+    class Meta:
+        model = ReturnRecord
+        fields = ['pk', 'date', 'original_sale', 'notes', 'items']
+
+    def to_internal_value(self, data):
+        if 'date' not in data or not data['date']:
+            data = {**data, 'date': str(timezone.localdate())}
+        return super().to_internal_value(data)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('En az bir ürün gerekli.')
+        request = self.context.get('request')
+        if request:
+            for item in value:
+                if item['product'].owner != request.user:
+                    raise serializers.ValidationError('Geçersiz ürün.')
+        return value
+
+    def validate_original_sale(self, value):
+        """Ensure original_sale belongs to the requesting user."""
+        request = self.context.get('request')
+        if value and request and value.owner != request.user:
+            raise serializers.ValidationError('Geçersiz satış kaydı.')
+        return value
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        with transaction.atomic():
+            record = ReturnRecord.objects.create(**validated_data)
+            for item in items_data:
+                ReturnItem.objects.create(record=record, **item)
+        return record
 
     def update(self, instance, validated_data):
         validated_data.pop('items', None)
