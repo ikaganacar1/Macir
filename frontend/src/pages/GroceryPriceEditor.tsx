@@ -77,25 +77,27 @@ export default function GroceryPriceEditor() {
             </Button>
             <Title order={4}>Fiyat Düzenle</Title>
           </Group>
-          {hasChanges && (
+          <Group gap='xs'>
+            {hasChanges && (
+              <Button
+                variant='default'
+                size='sm'
+                onClick={() => setChangedPrices({})}
+                data-testid='btn-revert'
+              >
+                Geri Al
+              </Button>
+            )}
             <Button
-              variant='default'
+              color='green'
               size='sm'
-              onClick={() => setChangedPrices({})}
-              data-testid='btn-revert'
+              disabled={!hasChanges}
+              loading={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
             >
-              Geri Al
+              Değişiklikleri Kaydet
             </Button>
-          )}
-          <Button
-            color='green'
-            size='sm'
-            disabled={!hasChanges}
-            loading={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            Değişiklikleri Kaydet
-          </Button>
+          </Group>
         </Group>
       }
     >
