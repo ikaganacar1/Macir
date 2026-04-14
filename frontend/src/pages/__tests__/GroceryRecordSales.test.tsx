@@ -69,7 +69,7 @@ describe('GroceryRecordSales', () => {
     });
   });
 
-  it('shows orange low stock dot for products with stock_level <= 2', async () => {
+  it('shows Az badge for low stock products in the main list', async () => {
     renderComponent();
     await waitFor(() => {
       expect(screen.getByText('Havuç')).toBeInTheDocument();
@@ -117,13 +117,10 @@ describe('GroceryRecordSales', () => {
   });
 
   it('shows stock level on product card', async () => {
-    renderComponent(); // uses existing mockProducts with stock_level
+    renderComponent();
     await waitFor(() => {
-      // The stock level text should appear on the product card
-      // mockProducts[0] should have stock_level visible
-      const cards = screen.getAllByRole('button', { hidden: true });
-      // Check that stock level text appears somewhere in the product grid area
-      expect(document.body.textContent).toContain('10'); // stock_level from mock
+      // Domates has stock_level: 20, unit: 'kg' → should render '20 kg'
+      expect(screen.getByText('20 kg')).toBeInTheDocument();
     });
   });
 
