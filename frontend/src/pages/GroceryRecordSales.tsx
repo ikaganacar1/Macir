@@ -179,31 +179,58 @@ export default function GroceryRecordSales() {
           }}
         >
           <Stack gap='xs'>
-            <Group justify='space-between'>
-              <Text c='white' fw={700} size='lg'>
-                Toplam: ₺{totalRevenue.toFixed(2)}
-              </Text>
-              <ScrollArea style={{ maxWidth: '55%' }}>
-                <Group gap='xs' wrap='nowrap'>
-                  {Object.entries(selectedItems).map(([pk, item]) => {
-                    const product = products.find((p) => p.pk === Number(pk));
-                    return (
-                      <Badge
-                        key={pk}
-                        color='white'
-                        c='green'
-                        style={{ cursor: 'pointer', flexShrink: 0 }}
-                        onClick={() => {
-                          const p = products.find((x) => x.pk === Number(pk));
-                          if (p) openModal(p);
-                        }}
-                      >
-                        {product?.name} ×{item.quantity}
-                      </Badge>
-                    );
-                  })}
-                </Group>
-              </ScrollArea>
+            <Group justify='space-between' align='flex-start'>
+              <Stack gap={2}>
+                <Text c='white' fw={700} size='lg'>
+                  Toplam: ₺{totalRevenue.toFixed(2)}
+                </Text>
+                <Text c='white' size='xs' opacity={0.85}>
+                  {selectedCount} ürün seçildi
+                </Text>
+              </Stack>
+              <Box style={{ position: 'relative', maxWidth: '55%' }}>
+                <Box
+                  style={{
+                    position: 'absolute',
+                    left: 0, top: 0, bottom: 0,
+                    width: 16,
+                    background: 'linear-gradient(to right, var(--mantine-color-green-6), transparent)',
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <ScrollArea>
+                  <Group gap='xs' wrap='nowrap'>
+                    {Object.entries(selectedItems).map(([pk, item]) => {
+                      const product = products.find((p) => p.pk === Number(pk));
+                      return (
+                        <Badge
+                          key={pk}
+                          color='white'
+                          c='green'
+                          style={{ cursor: 'pointer', flexShrink: 0 }}
+                          onClick={() => {
+                            const p = products.find((x) => x.pk === Number(pk));
+                            if (p) openModal(p);
+                          }}
+                        >
+                          {product?.name} ×{item.quantity}
+                        </Badge>
+                      );
+                    })}
+                  </Group>
+                </ScrollArea>
+                <Box
+                  style={{
+                    position: 'absolute',
+                    right: 0, top: 0, bottom: 0,
+                    width: 16,
+                    background: 'linear-gradient(to left, var(--mantine-color-green-6), transparent)',
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                  }}
+                />
+              </Box>
             </Group>
             <Button
               color='white'
@@ -286,20 +313,17 @@ export default function GroceryRecordSales() {
               }}
               onClick={() => openModal(product)}
             >
-              {/* Low stock dot */}
+              {/* Low stock badge */}
               {isLowStock && (
-                <Box
+                <Badge
                   data-testid="low-stock-indicator"
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: 'var(--mantine-color-orange-5)',
-                  }}
-                />
+                  size='xs'
+                  color='orange'
+                  variant='filled'
+                  style={{ position: 'absolute', top: 4, right: 4 }}
+                >
+                  Az
+                </Badge>
               )}
               {/* Selected badge */}
               {isSelected && (
@@ -319,6 +343,19 @@ export default function GroceryRecordSales() {
               <Text size='sm' fw={700} c='green'>
                 ₺{parseFloat(product.sell_price).toFixed(2)}
               </Text>
+              {(() => {
+                const stockColor =
+                  product.stock_level <= 0
+                    ? 'red'
+                    : isLowStock
+                    ? 'orange'
+                    : 'dimmed';
+                return (
+                  <Text size='xs' c={stockColor} fw={500}>
+                    {product.stock_level} {product.unit}
+                  </Text>
+                );
+              })()}
             </Paper>
           );
         })}

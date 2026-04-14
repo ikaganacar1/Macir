@@ -115,4 +115,33 @@ describe('GroceryRecordSales', () => {
     expect(screen.getByText('Nakit')).toBeInTheDocument();
     expect(screen.getByText('Kart')).toBeInTheDocument();
   });
+
+  it('shows stock level on product card', async () => {
+    renderComponent(); // uses existing mockProducts with stock_level
+    await waitFor(() => {
+      // The stock level text should appear on the product card
+      // mockProducts[0] should have stock_level visible
+      const cards = screen.getAllByRole('button', { hidden: true });
+      // Check that stock level text appears somewhere in the product grid area
+      expect(document.body.textContent).toContain('10'); // stock_level from mock
+    });
+  });
+
+  it('shows Az badge for low stock products', async () => {
+    const lowStockProducts = [
+      {
+        pk: 1, name: 'Domates', unit: 'kg', sell_price: '18', category: 1,
+        category_name: 'Sebze', stock_level: 1, low_stock_threshold: '5',
+        is_active: true, svg_icon: null, expiry_note: '', most_recent_purchase_price: '12',
+      },
+    ];
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('products')) return Promise.resolve({ data: lowStockProducts });
+      return Promise.resolve({ data: { best_sellers: [] } });
+    });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('Az')).toBeInTheDocument();
+    });
+  });
 });
