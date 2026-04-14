@@ -29,14 +29,20 @@ export default function GroceryPriceEditor() {
     queryFn: () => api.get(endpoints.products).then((r) => r.data),
   });
 
-  const grouped = useMemo(() => {
+  const { grouped, sortedCategories } = useMemo(() => {
+    const order: Record<string, number> = {};
     const map: Record<string, Product[]> = {};
+    let idx = 0;
     for (const p of products) {
       const cat = p.category_name || 'Diğer';
+      if (!(cat in order)) {
+        order[cat] = idx++;
+      }
       if (!map[cat]) map[cat] = [];
       map[cat].push(p);
     }
-    return map;
+    const sorted = Object.keys(map).sort((a, b) => (order[a] ?? 0) - (order[b] ?? 0));
+    return { grouped: map, sortedCategories: sorted };
   }, [products]);
 
   const hasChanges = Object.keys(changedPrices).length > 0;
@@ -57,7 +63,7 @@ export default function GroceryPriceEditor() {
       notifications.show({ message: 'Fiyatlar güncellendi!', color: 'green' });
     },
     onError: () => {
-      notifications.show({ message: 'Güncelleme başarısız', color: 'red' });
+      notifications.show({ message: 'Fiyat güncellenemedi — lütfen tekrar deneyin', color: 'red' });
     },
   });
 
@@ -71,6 +77,16 @@ export default function GroceryPriceEditor() {
             </Button>
             <Title order={4}>Fiyat Düzenle</Title>
           </Group>
+          {hasChanges && (
+            <Button
+              variant='default'
+              size='sm'
+              onClick={() => setChangedPrices({})}
+              data-testid='btn-revert'
+            >
+              Geri Al
+            </Button>
+          )}
           <Button
             color='green'
             size='sm'
@@ -84,7 +100,9 @@ export default function GroceryPriceEditor() {
       }
     >
       {isLoading && <Text c='dimmed'>Yükleniyor...</Text>}
-      {Object.entries(grouped).map(([categoryName, categoryProducts]) => (
+      {sortedCategories.map((categoryName) => {
+        const categoryProducts = grouped[categoryName];
+        return (
         <Box key={categoryName}>
           <Text fw={700} size='sm' c='dimmed' mb='xs' tt='uppercase'>
             {categoryName}
@@ -143,7 +161,8 @@ export default function GroceryPriceEditor() {
             })}
           </Stack>
         </Box>
-      ))}
+        );
+      })}
     </PageLayout>
   );
 }
