@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
@@ -219,7 +220,20 @@ class SaleRecordList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return SaleRecord.objects.filter(owner=self.request.user).order_by('-date', '-pk').prefetch_related('items__product')
+        qs = SaleRecord.objects.filter(owner=self.request.user).order_by('-date', '-pk').prefetch_related('items__product')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            try:
+                qs = qs.filter(date__gte=date_from)
+            except (ValueError, Exception):
+                pass
+        if date_to:
+            try:
+                qs = qs.filter(date__lte=date_to)
+            except (ValueError, Exception):
+                pass
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -530,7 +544,7 @@ class FinanceEntryList(generics.ListCreateAPIView):
         serializer.save(owner=self.request.user)
 
 
-class FinanceEntryDetail(generics.DestroyAPIView):
+class FinanceEntryDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = FinanceEntrySerializer
     permission_classes = [IsAuthenticated]
 
@@ -589,14 +603,15 @@ class DebtPaymentList(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        debt = self._get_debt()
-        amount = serializer.validated_data['amount']
-        total_paid = DebtPayment.objects.filter(debt=debt).aggregate(
-            total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
-        )['total']
-        if total_paid + amount > debt.total_amount:
-            raise DRFValidationError({'amount': 'Bu ödeme toplam borç miktarını aşıyor.'})
-        serializer.save(debt=debt)
+        with transaction.atomic():
+            debt = get_object_or_404(Debt.objects.select_for_update(), pk=self.kwargs['debt_pk'], owner=self.request.user)
+            amount = serializer.validated_data['amount']
+            total_paid = DebtPayment.objects.filter(debt=debt).aggregate(
+                total=Coalesce(Sum('amount'), Decimal('0'), output_field=DecimalField())
+            )['total']
+            if total_paid + amount > debt.total_amount:
+                raise DRFValidationError({'amount': 'Bu ödeme toplam borç miktarını aşıyor.'})
+            serializer.save(debt=debt)
 
 
 class DebtPaymentDetail(generics.DestroyAPIView):

@@ -161,42 +161,37 @@ class SaleRecordSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError('Geçersiz ürün.')
         return value
 
-    def validate(self, data):
-        """Check that no item would cause negative stock."""
-        request = self.context.get('request')
-        items = data.get('items', [])
-        errors = []
-        for item in items:
-            product = item['product']
-            qty = item['quantity']
-            received = StockEntryItem.objects.filter(
-                product=product,
-                **({'entry__owner': request.user} if request else {})
-            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-            sold = SaleItem.objects.filter(
-                product=product,
-                **({'sale__owner': request.user} if request else {})
-            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-            wasted = WasteItem.objects.filter(
-                product=product,
-                **({'entry__owner': request.user} if request else {})
-            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-            returned = ReturnItem.objects.filter(
-                product=product,
-                **({'record__owner': request.user} if request else {})
-            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-            available = received + returned - sold - wasted
-            if qty > available:
-                errors.append(
-                    f'{product.name}: stok yetersiz ({available} mevcut, {qty} istendi)'
-                )
-        if errors:
-            raise serializers.ValidationError({'items': errors})
-        return data
-
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         with transaction.atomic():
+            request = self.context.get('request')
+            errors = []
+            for item in items_data:
+                product = item['product']
+                qty = item['quantity']
+                received = StockEntryItem.objects.filter(
+                    product=product,
+                    **({'entry__owner': request.user} if request else {})
+                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+                sold = SaleItem.objects.filter(
+                    product=product,
+                    **({'sale__owner': request.user} if request else {})
+                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+                wasted = WasteItem.objects.filter(
+                    product=product,
+                    **({'entry__owner': request.user} if request else {})
+                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+                returned = ReturnItem.objects.filter(
+                    product=product,
+                    **({'record__owner': request.user} if request else {})
+                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+                available = received + returned - sold - wasted
+                if qty > available:
+                    errors.append(
+                        f'{product.name}: stok yetersiz ({available} mevcut, {qty} istendi)'
+                    )
+            if errors:
+                raise serializers.ValidationError({'items': errors})
             sale = SaleRecord.objects.create(**validated_data)
             for item in items_data:
                 SaleItem.objects.create(sale=sale, **item)
