@@ -143,7 +143,7 @@ class SaleRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SaleRecord
-        fields = ['pk', 'date', 'notes', 'items']
+        fields = ['pk', 'date', 'payment_method', 'notes', 'items']
 
     def to_internal_value(self, data):
         if 'date' not in data or not data['date']:

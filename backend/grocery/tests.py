@@ -1131,3 +1131,52 @@ class ReturnRecordAPITest(APITestCase):
         ReturnItem.objects.create(record=rr, product=other_product, quantity='1', refund_price='20')
         r = self.client.get('/api/grocery/returns/')
         self.assertEqual(len(r.data), 0)
+
+
+class PaymentMethodTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='pay_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Sebze', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Soğan', category=self.cat, unit='kg', sell_price='12', owner=self.user
+        )
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='20', purchase_price='8')
+        self.client.force_authenticate(user=self.user)
+
+    def test_sale_defaults_to_cash(self):
+        r = self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '3', 'sell_price': '12'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data['payment_method'], 'cash')
+
+    def test_sale_with_card(self):
+        r = self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14',
+            'payment_method': 'card',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '2', 'sell_price': '12'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data['payment_method'], 'card')
+
+    def test_dashboard_cash_card_split(self):
+        # Cash sale: 3 kg × ₺12 = ₺36
+        self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14', 'payment_method': 'cash', 'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '3', 'sell_price': '12'}],
+        }, format='json')
+        # Card sale: 2 kg × ₺12 = ₺24
+        self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14', 'payment_method': 'card', 'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '2', 'sell_price': '12'}],
+        }, format='json')
+        r = self.client.get('/api/grocery/dashboard/', {'range': 'today', 'date': '2026-04-14'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(float(r.data['cash_sales']), 36.0)
+        self.assertEqual(float(r.data['card_sales']), 24.0)

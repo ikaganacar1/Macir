@@ -449,6 +449,30 @@ class DashboardView(APIView):
 
         total_debt_remaining = total_debt_principal - total_debt_paid
 
+        cash_sales = SaleItem.objects.filter(
+            sale__date__range=(start, end),
+            sale__owner=user,
+            sale__payment_method='cash',
+        ).aggregate(
+            total=Coalesce(
+                Sum(ExpressionWrapper(F('quantity') * F('sell_price'), output_field=DecimalField())),
+                Decimal('0'),
+                output_field=DecimalField(),
+            )
+        )['total']
+
+        card_sales = SaleItem.objects.filter(
+            sale__date__range=(start, end),
+            sale__owner=user,
+            sale__payment_method='card',
+        ).aggregate(
+            total=Coalesce(
+                Sum(ExpressionWrapper(F('quantity') * F('sell_price'), output_field=DecimalField())),
+                Decimal('0'),
+                output_field=DecimalField(),
+            )
+        )['total']
+
         return Response({
             'range': range_param,
             'start': str(start),
@@ -462,6 +486,8 @@ class DashboardView(APIView):
             'monthly_expenses': monthly_expenses,
             'monthly_income_extra': monthly_income_extra,
             'total_debt_remaining': total_debt_remaining,
+            'cash_sales': cash_sales,
+            'card_sales': card_sales,
         })
 
 
