@@ -19,6 +19,7 @@ from grocery.models import (
     StockEntry,
     StockEntryItem,
     StoreProfile,
+    WasteEntry,
     WasteItem,
 )
 
@@ -202,6 +203,52 @@ class SaleRecordSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop('items', None)  # items are immutable after creation
+        return super().update(instance, validated_data)
+
+
+class WasteItemSerializer(serializers.ModelSerializer):
+    """Serializer for WasteItem."""
+
+    class Meta:
+        model = WasteItem
+        fields = ['pk', 'product', 'quantity', 'reason']
+
+
+class WasteEntrySerializer(serializers.ModelSerializer):
+    """Serializer for WasteEntry with nested items."""
+
+    items = WasteItemSerializer(many=True)
+    date = serializers.DateField(required=False)
+
+    class Meta:
+        model = WasteEntry
+        fields = ['pk', 'date', 'notes', 'items']
+
+    def to_internal_value(self, data):
+        if 'date' not in data or not data['date']:
+            data = {**data, 'date': str(timezone.localdate())}
+        return super().to_internal_value(data)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('En az bir ürün gerekli.')
+        request = self.context.get('request')
+        if request:
+            for item in value:
+                if item['product'].owner != request.user:
+                    raise serializers.ValidationError('Geçersiz ürün.')
+        return value
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        with transaction.atomic():
+            entry = WasteEntry.objects.create(**validated_data)
+            for item in items_data:
+                WasteItem.objects.create(entry=entry, **item)
+        return entry
+
+    def update(self, instance, validated_data):
+        validated_data.pop('items', None)
         return super().update(instance, validated_data)
 
 

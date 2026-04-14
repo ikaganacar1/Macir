@@ -1001,3 +1001,68 @@ class StockFormulaTest(APITestCase):
             'items': [{'product': self.product.pk, 'quantity': '8', 'sell_price': '20'}],
         }, format='json')
         self.assertEqual(r.status_code, 201)
+
+
+class WasteEntryAPITest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='waste_api_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Sebze', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Patlıcan', category=self.cat, unit='kg', sell_price='25', owner=self.user
+        )
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='10', purchase_price='15')
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_waste_entry(self):
+        r = self.client.post('/api/grocery/waste-entries/', {
+            'date': '2026-04-14',
+            'notes': 'Hepsi bozuldu',
+            'items': [{'product': self.product.pk, 'quantity': '3', 'reason': 'spoiled'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(len(r.data['items']), 1)
+        self.assertEqual(r.data['items'][0]['reason'], 'spoiled')
+
+    def test_waste_entry_requires_at_least_one_item(self):
+        r = self.client.post('/api/grocery/waste-entries/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [],
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_waste_entry_rejects_other_users_product(self):
+        other_user = User.objects.create_user(username='other_waste', password='p')
+        other_product = Product.objects.create(
+            name='Havuç', unit='kg', sell_price='10', owner=other_user
+        )
+        r = self.client.post('/api/grocery/waste-entries/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': other_product.pk, 'quantity': '1', 'reason': 'spoiled'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_list_waste_entries(self):
+        from grocery.models import WasteEntry, WasteItem
+        we = WasteEntry.objects.create(date='2026-04-14', owner=self.user)
+        WasteItem.objects.create(entry=we, product=self.product, quantity='2', reason='damaged')
+        r = self.client.get('/api/grocery/waste-entries/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 1)
+
+    def test_waste_entries_isolated_by_owner(self):
+        from grocery.models import WasteEntry, WasteItem
+        other_user = User.objects.create_user(username='other_waste2', password='p')
+        other_product = Product.objects.create(
+            name='Marul', unit='kg', sell_price='8', owner=other_user
+        )
+        other_entry = StockEntry.objects.create(date='2026-04-14', owner=other_user)
+        StockEntryItem.objects.create(entry=other_entry, product=other_product, quantity='5', purchase_price='5')
+        we = WasteEntry.objects.create(date='2026-04-14', owner=other_user)
+        WasteItem.objects.create(entry=we, product=other_product, quantity='1', reason='spoiled')
+        r = self.client.get('/api/grocery/waste-entries/')
+        self.assertEqual(len(r.data), 0)
