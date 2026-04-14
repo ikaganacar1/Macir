@@ -95,10 +95,6 @@ export default function GroceryProfile() {
     setIsDirty(true);
   }
 
-  if (typeof window !== 'undefined') {
-    (window as any).__simulateMapClick = handleMapClick;
-  }
-
   function handleGeolocate() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -145,7 +145,7 @@ describe('GroceryProfile', () => {
         error(new Error('denied'));
       }),
     };
-    Object.defineProperty(global.navigator, 'geolocation', {
+    Object.defineProperty(window.navigator, 'geolocation', {
       value: mockGeo,
       configurable: true,
     });
@@ -163,10 +163,8 @@ describe('GroceryProfile', () => {
     renderComponent();
     await screen.findByTestId('btn-back');
 
-    // Simulate a map click to dirty the form
-    act(() => {
-      (window as any).__simulateMapClick(41.0, 29.0);
-    });
+    // Click a radius preset to dirty the form
+    fireEvent.click(screen.getByTestId('radius-3'));
 
     fireEvent.click(screen.getByTestId('btn-back'));
     await waitFor(() => {
