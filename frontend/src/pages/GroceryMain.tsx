@@ -14,6 +14,7 @@ import {
   IconAlertTriangle,
   IconChartBar,
   IconClipboardList,
+  IconFlame,
   IconPackage,
   IconSettings,
   IconShoppingBag,
@@ -223,6 +224,17 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         data-testid='btn-finance'
       >
         Borçlar & Giderler
+      </Button>
+
+      <Button
+        variant='default'
+        h={56}
+        fullWidth
+        leftSection={<IconFlame size={20} />}
+        onClick={() => navigate('/waste/new')}
+        data-testid='btn-waste'
+      >
+        Fire/Kayıp Kaydı
       </Button>
 
       {/* Son Satışlar */}
