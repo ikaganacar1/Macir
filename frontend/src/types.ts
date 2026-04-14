@@ -25,6 +25,8 @@ export interface DashboardData {
   end: string;
   total_sales: string | number;
   net_profit: string | number;
+  cash_sales: string | number;
+  card_sales: string | number;
   items_sold: number;
   best_sellers: {
     product_id: number;
@@ -86,6 +88,7 @@ export interface SaleItem {
 export interface SaleRecord {
   pk: number;
   date: string;
+  payment_method: 'cash' | 'card';
   notes: string;
   items: SaleItem[];
 }
@@ -108,4 +111,33 @@ export interface StoreProfile {
   latitude: number;
   longitude: number;
   search_radius_km: number;
+}
+
+export interface WasteItem {
+  pk: number;
+  product: number;
+  quantity: string;
+  reason: 'spoiled' | 'damaged' | 'expired' | 'other';
+}
+
+export interface WasteEntry {
+  pk: number;
+  date: string;
+  notes: string;
+  items: WasteItem[];
+}
+
+export interface ReturnItem {
+  pk: number;
+  product: number;
+  quantity: string;
+  refund_price: string;
+}
+
+export interface ReturnRecord {
+  pk: number;
+  date: string;
+  original_sale: number | null;
+  notes: string;
+  items: ReturnItem[];
 }

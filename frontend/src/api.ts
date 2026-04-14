@@ -12,13 +12,15 @@ api.interceptors.request.use((config) => {
 });
 
 export const endpoints = {
-  categories:   '/api/grocery/categories/',
-  products:     '/api/grocery/products/',
-  stockEntries: '/api/grocery/stock-entries/',
-  saleRecords:  '/api/grocery/sale-records/',
-  dashboard:    '/api/grocery/dashboard/',
-  marketPrices: '/api/market-prices/search/',
-  profile:      '/api/grocery/profile/',
-  finance:      '/api/grocery/finance/',
-  debts:        '/api/grocery/debts/',
+  categories:    '/api/grocery/categories/',
+  products:      '/api/grocery/products/',
+  stockEntries:  '/api/grocery/stock-entries/',
+  saleRecords:   '/api/grocery/sale-records/',
+  wasteEntries:  '/api/grocery/waste-entries/',
+  returnRecords: '/api/grocery/returns/',
+  dashboard:     '/api/grocery/dashboard/',
+  marketPrices:  '/api/market-prices/search/',
+  profile:       '/api/grocery/profile/',
+  finance:       '/api/grocery/finance/',
+  debts:         '/api/grocery/debts/',
 };
