@@ -23,11 +23,15 @@ from grocery.models import (
     DebtPayment,
     FinanceEntry,
     Product,
+    ReturnItem,
+    ReturnRecord,
     SaleItem,
     SaleRecord,
     StockEntry,
     StockEntryItem,
     StoreProfile,
+    WasteEntry,
+    WasteItem,
 )
 from grocery.serializers import (
     CategorySerializer,
@@ -84,6 +88,28 @@ def _annotate_products(qs):
         Decimal('0'),
         output_field=DecimalField(),
     )
+    wasted_sq = Coalesce(
+        Subquery(
+            WasteItem.objects.filter(product_id=OuterRef('pk'))
+            .values('product_id')
+            .annotate(total=Sum('quantity'))
+            .values('total')[:1],
+            output_field=DecimalField(),
+        ),
+        Decimal('0'),
+        output_field=DecimalField(),
+    )
+    returned_sq = Coalesce(
+        Subquery(
+            ReturnItem.objects.filter(product_id=OuterRef('pk'))
+            .values('product_id')
+            .annotate(total=Sum('quantity'))
+            .values('total')[:1],
+            output_field=DecimalField(),
+        ),
+        Decimal('0'),
+        output_field=DecimalField(),
+    )
     latest_price_sq = Subquery(
         StockEntryItem.objects.filter(product_id=OuterRef('pk'))
         .order_by('-entry__date', '-id')
@@ -91,7 +117,10 @@ def _annotate_products(qs):
         output_field=DecimalField(),
     )
     return qs.annotate(
-        _stock_level=ExpressionWrapper(received_sq - sold_sq, output_field=DecimalField()),
+        _stock_level=ExpressionWrapper(
+            received_sq + returned_sq - sold_sq - wasted_sq,
+            output_field=DecimalField(),
+        ),
         _most_recent_purchase_price=latest_price_sq,
     )
 
@@ -167,7 +196,7 @@ class SaleRecordDetail(generics.RetrieveAPIView):
 def _compute_stock_levels(user, active_only=True):
     """
     Compute stock level per product for a given user using bulk queries (not N+2).
-    Returns a tuple: (received_map, sold_map) — dicts of {product_id: Decimal}.
+    Returns a tuple: (received_map, sold_map, wasted_map, returned_map).
     """
     product_filter = {'product__owner': user}
     if active_only:
@@ -185,7 +214,19 @@ def _compute_stock_levels(user, active_only=True):
         .values('product_id')
         .annotate(total=Sum('quantity'))
     }
-    return received_map, sold_map
+    wasted_map = {
+        w['product_id']: w['total']
+        for w in WasteItem.objects.filter(**product_filter)
+        .values('product_id')
+        .annotate(total=Sum('quantity'))
+    }
+    returned_map = {
+        r['product_id']: r['total']
+        for r in ReturnItem.objects.filter(**product_filter)
+        .values('product_id')
+        .annotate(total=Sum('quantity'))
+    }
+    return received_map, sold_map, wasted_map, returned_map
 
 
 def _create_missing_recurring(user):
@@ -292,12 +333,17 @@ class DashboardView(APIView):
             for p in products_sold
         ]
 
-        received_map, sold_map = _compute_stock_levels(user, active_only=True)
+        received_map, sold_map, wasted_map, returned_map = _compute_stock_levels(user, active_only=True)
         low_stock = []
         for p in Product.objects.filter(owner=user, is_active=True).values(
             'pk', 'name', 'unit', 'low_stock_threshold'
         ):
-            level = received_map.get(p['pk'], Decimal('0')) - sold_map.get(p['pk'], Decimal('0'))
+            level = (
+                received_map.get(p['pk'], Decimal('0'))
+                + returned_map.get(p['pk'], Decimal('0'))
+                - sold_map.get(p['pk'], Decimal('0'))
+                - wasted_map.get(p['pk'], Decimal('0'))
+            )
             if level <= p['low_stock_threshold']:
                 low_stock.append({
                     'product_id': p['pk'],

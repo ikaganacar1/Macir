@@ -950,3 +950,54 @@ class ReturnRecordModelTest(TestCase):
         rr = ReturnRecord.objects.create(date='2026-04-14', owner=self.user)
         ReturnItem.objects.create(record=rr, product=self.product, quantity='2', refund_price='15')
         self.assertEqual(self.product.stock_level, 7)  # 10 - 5 + 2
+
+
+class StockFormulaTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='formula_u', password='p')
+        Product.objects.filter(owner=self.user).delete()
+        Category.objects.filter(owner=self.user).delete()
+        self.cat = Category.objects.create(name='Sebze', order=1, owner=self.user)
+        self.product = Product.objects.create(
+            name='Biber', category=self.cat, unit='kg', sell_price='20', owner=self.user
+        )
+        # Stock in: 10 kg
+        entry = StockEntry.objects.create(date='2026-04-14', owner=self.user)
+        StockEntryItem.objects.create(entry=entry, product=self.product, quantity='10', purchase_price='12')
+        # Sold: 3 kg
+        sale = SaleRecord.objects.create(date='2026-04-14', owner=self.user)
+        SaleItem.objects.create(sale=sale, product=self.product, quantity='3', sell_price='20')
+        # Wasted: 1 kg
+        from grocery.models import WasteEntry, WasteItem
+        we = WasteEntry.objects.create(date='2026-04-14', owner=self.user)
+        WasteItem.objects.create(entry=we, product=self.product, quantity='1', reason='spoiled')
+        # Returned: 2 kg
+        from grocery.models import ReturnRecord, ReturnItem
+        rr = ReturnRecord.objects.create(date='2026-04-14', owner=self.user)
+        ReturnItem.objects.create(record=rr, product=self.product, quantity='2', refund_price='20')
+        self.client.force_authenticate(user=self.user)
+
+    def test_annotated_stock_level(self):
+        # expected: 10 + 2 - 3 - 1 = 8
+        r = self.client.get('/api/grocery/products/')
+        self.assertEqual(r.status_code, 200)
+        product_data = next(p for p in r.data if p['name'] == 'Biber')
+        self.assertEqual(float(product_data['stock_level']), 8.0)
+
+    def test_sale_respects_wasted_stock(self):
+        # 8 kg available; trying to sell 9 should fail
+        r = self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '9', 'sell_price': '20'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_sale_within_available_stock_succeeds(self):
+        # 8 kg available; selling 8 should work
+        r = self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-04-14',
+            'notes': '',
+            'items': [{'product': self.product.pk, 'quantity': '8', 'sell_price': '20'}],
+        }, format='json')
+        self.assertEqual(r.status_code, 201)

@@ -13,11 +13,13 @@ from grocery.models import (
     DebtPayment,
     FinanceEntry,
     Product,
+    ReturnItem,
     SaleItem,
     SaleRecord,
     StockEntry,
     StockEntryItem,
     StoreProfile,
+    WasteItem,
 )
 
 
@@ -165,15 +167,23 @@ class SaleRecordSerializer(serializers.ModelSerializer):
         for item in items:
             product = item['product']
             qty = item['quantity']
-            owner_filter = {'entry__owner': request.user} if request else {}
-            received = StockEntryItem.objects.filter(product=product, **owner_filter).aggregate(
-                total=Sum('quantity')
-            )['total'] or Decimal('0')
-            sale_owner_filter = {'sale__owner': request.user} if request else {}
-            sold = SaleItem.objects.filter(product=product, **sale_owner_filter).aggregate(
-                total=Sum('quantity')
-            )['total'] or Decimal('0')
-            available = received - sold
+            received = StockEntryItem.objects.filter(
+                product=product,
+                **({'entry__owner': request.user} if request else {})
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            sold = SaleItem.objects.filter(
+                product=product,
+                **({'sale__owner': request.user} if request else {})
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            wasted = WasteItem.objects.filter(
+                product=product,
+                **({'entry__owner': request.user} if request else {})
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            returned = ReturnItem.objects.filter(
+                product=product,
+                **({'record__owner': request.user} if request else {})
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            available = received + returned - sold - wasted
             if qty > available:
                 errors.append(
                     f'{product.name}: stok yetersiz ({available} mevcut, {qty} istendi)'
