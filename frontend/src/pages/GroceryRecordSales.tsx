@@ -10,6 +10,7 @@ import {
   NumberInput,
   Paper,
   ScrollArea,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Text,
@@ -48,6 +49,7 @@ export default function GroceryRecordSales() {
   const [modalQty, setModalQty] = useState('0');
   const [modalPrice, setModalPrice] = useState(0);
   const [opened, { open, close }] = useDisclosure(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products'],
@@ -130,6 +132,7 @@ export default function GroceryRecordSales() {
       const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
       return api.post(endpoints.saleRecords, {
         date: today,
+        payment_method: paymentMethod,
         notes: '',
         items: Object.values(selectedItems),
       });
@@ -181,6 +184,18 @@ export default function GroceryRecordSales() {
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           size='md'
+        />
+
+        {/* Payment method toggle */}
+        <SegmentedControl
+          value={paymentMethod}
+          onChange={(v) => setPaymentMethod(v as 'cash' | 'card')}
+          data={[
+            { label: 'Nakit', value: 'cash' },
+            { label: 'Kart', value: 'card' },
+          ]}
+          color='green'
+          fullWidth
         />
 
         {/* Category chips */}

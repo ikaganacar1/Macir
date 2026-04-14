@@ -108,4 +108,11 @@ describe('GroceryRecordSales', () => {
     });
     expect(screen.queryByText(/Tamamla/)).not.toBeInTheDocument();
   });
+
+  it('shows cash/card toggle', async () => {
+    renderComponent();
+    expect(await screen.findByText('Satış Yap')).toBeInTheDocument();
+    expect(screen.getByText('Nakit')).toBeInTheDocument();
+    expect(screen.getByText('Kart')).toBeInTheDocument();
+  });
 });
