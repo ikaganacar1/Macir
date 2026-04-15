@@ -1261,3 +1261,23 @@ class DebtDetailGetTest(APITestCase):
         self.client.force_login(other)
         resp = self.client.get(f'/api/grocery/debts/{self.debt.pk}/')
         self.assertEqual(resp.status_code, 404)
+
+
+class SaleRecordDateFilterTest(APITestCase):
+    """Date filter params should be validated; invalid dates should return 400."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='sale_filter_user', password='pass')
+        self.client.force_login(self.user)
+
+    def test_invalid_date_from_returns_400(self):
+        resp = self.client.get('/api/grocery/sale-records/?date_from=not-a-date')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_date_to_returns_400(self):
+        resp = self.client.get('/api/grocery/sale-records/?date_to=99-99-99')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_valid_dates_return_200(self):
+        resp = self.client.get('/api/grocery/sale-records/?date_from=2026-01-01&date_to=2026-12-31')
+        self.assertEqual(resp.status_code, 200)

@@ -224,15 +224,15 @@ class SaleRecordList(generics.ListCreateAPIView):
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         if date_from:
-            try:
-                qs = qs.filter(date__gte=date_from)
-            except (ValueError, Exception):
-                pass
+            parsed = parse_date(date_from)
+            if parsed is None:
+                raise DRFValidationError({'date_from': 'Geçersiz tarih formatı. YYYY-MM-DD kullanın.'})
+            qs = qs.filter(date__gte=parsed)
         if date_to:
-            try:
-                qs = qs.filter(date__lte=date_to)
-            except (ValueError, Exception):
-                pass
+            parsed = parse_date(date_to)
+            if parsed is None:
+                raise DRFValidationError({'date_to': 'Geçersiz tarih formatı. YYYY-MM-DD kullanın.'})
+            qs = qs.filter(date__lte=parsed)
         return qs
 
     def perform_create(self, serializer):
