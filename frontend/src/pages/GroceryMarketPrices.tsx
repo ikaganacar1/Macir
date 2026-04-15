@@ -58,7 +58,7 @@ function getPriceForMarket(results: MarketPriceResult[], market: string): number
 
 function ProductPriceCard({ name, lat, lng }: { name: string; lat: number; lng: number }) {
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-prices', name.toLowerCase(), lat, lng],
+    queryKey: ['market-prices', name.toLowerCase(), lat.toFixed(3), lng.toFixed(3)],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: name } }).then((r) => r.data),
     staleTime: 30 * 60 * 1000,
@@ -165,7 +165,7 @@ export default function GroceryMarketPrices() {
   });
 
   const { data, isLoading } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-prices', submittedQuery, lat, lng],
+    queryKey: ['market-prices', submittedQuery, lat.toFixed(3), lng.toFixed(3)],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: submittedQuery } }).then((r) => r.data),
     enabled: !!submittedQuery,
