@@ -42,6 +42,7 @@ vi.mock('../../api', () => ({
   api: {
     get: vi.fn(),
     patch: vi.fn(),
+    post: vi.fn(),
   },
   endpoints: {
     profile: '/api/grocery/profile/',
@@ -59,14 +60,14 @@ import GroceryProfile from '../GroceryProfile';
 
 const mockProfile = { latitude: 41.0082, longitude: 28.9784, search_radius_km: 5 };
 
-function renderComponent() {
+function renderComponent(onLogout = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter>
       <QueryClientProvider client={qc}>
         <MantineProvider>
           <Notifications />
-          <GroceryProfile />
+          <GroceryProfile onLogout={onLogout} />
         </MantineProvider>
       </QueryClientProvider>
     </MemoryRouter>
@@ -78,6 +79,7 @@ describe('GroceryProfile', () => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockResolvedValue({ data: mockProfile });
     vi.mocked(api.patch).mockResolvedValue({ data: mockProfile });
+    vi.mocked(api.post).mockResolvedValue({});
   });
 
   it('renders map and loads current profile', async () => {
@@ -178,5 +180,15 @@ describe('GroceryProfile', () => {
     const backBtn = await screen.findByTestId('btn-back');
     fireEvent.click(backBtn);
     expect(mockNavigate).toHaveBeenCalledWith(-1);
+  });
+
+  it('calls onLogout after logout button click', async () => {
+    const onLogout = vi.fn();
+    renderComponent(onLogout);
+    const logoutBtn = await screen.findByTestId('btn-logout');
+    fireEvent.click(logoutBtn);
+    await waitFor(() => {
+      expect(onLogout).toHaveBeenCalled();
+    });
   });
 });

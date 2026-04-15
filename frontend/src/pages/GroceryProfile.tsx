@@ -44,7 +44,7 @@ function ClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void
   return null;
 }
 
-export default function GroceryProfile() {
+export default function GroceryProfile({ onLogout }: { onLogout?: () => void } = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -85,6 +85,14 @@ export default function GroceryProfile() {
       notifications.show({ message: 'Kaydedilemedi', color: 'red' });
     },
   });
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout/');
+    } finally {
+      onLogout?.();
+    }
+  };
 
   function handleMapClick(newLat: number, newLng: number) {
     const parsedLat = parseFloat(newLat.toFixed(6));
@@ -199,6 +207,17 @@ export default function GroceryProfile() {
         <Text size='xs' c='dimmed'>
           Haritaya dokunarak mağaza konumunuzu ayarlayın. Yakın marketlerin fiyatları önce gösterilir.
         </Text>
+
+        <Button
+          variant='subtle'
+          color='gray'
+          size='sm'
+          fullWidth
+          onClick={handleLogout}
+          data-testid='btn-logout'
+        >
+          Çıkış Yap
+        </Button>
       </PageLayout>
 
       <Modal

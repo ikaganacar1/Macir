@@ -31,7 +31,7 @@ import type { DashboardData, SaleRecord } from '../types';
 import { recordTotal } from '../utils/sales';
 import { formatFullDate, getIstanbulToday, ISTANBUL_TZ } from '../utils/format';
 
-export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
+export default function GroceryMain() {
   const navigate = useNavigate();
   const today = getIstanbulToday();
 
@@ -49,14 +49,6 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   });
 
   const recentSales = saleRecords?.slice(0, 5) ?? [];
-
-  const handleLogout = async () => {
-    try {
-      await api.post('/api/auth/logout/');
-    } finally {
-      onLogout();
-    }
-  };
 
   const todayLabel = new Intl.DateTimeFormat('tr-TR', {
     timeZone: ISTANBUL_TZ,
@@ -322,12 +314,6 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
         )}
       </Box>
 
-      <Box style={{ flex: 1 }} />
-
-      {/* Logout */}
-      <Button variant='subtle' color='gray' size='sm' onClick={handleLogout} data-testid="btn-logout">
-        Çıkış Yap
-      </Button>
     </Stack>
   );
 }

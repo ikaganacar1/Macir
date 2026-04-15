@@ -64,14 +64,14 @@ export default function App() {
           <ErrorBoundary>
             <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Yükleniyor...</div>}>
               <Routes>
-                <Route path='/' element={<GroceryMain onLogout={() => setAuthed(false)} />} />
+                <Route path='/' element={<GroceryMain />} />
                 <Route path='/dashboard' element={<GroceryDashboard />} />
                 <Route path='/products' element={<GroceryProducts />} />
                 <Route path='/stock/new' element={<GroceryAddStock />} />
                 <Route path='/sales/new' element={<GroceryRecordSales />} />
                 <Route path='/sales/history' element={<GrocerySalesHistory />} />
                 <Route path='/market-prices' element={<GroceryMarketPrices />} />
-                <Route path='/profile' element={<GroceryProfile />} />
+                <Route path='/profile' element={<GroceryProfile onLogout={() => setAuthed(false)} />} />
                 <Route path='/finance' element={<GroceryFinance />} />
                 <Route path='/waste/new' element={<GroceryWasteEntry />} />
                 <Route path='/returns/new' element={<GroceryReturns />} />

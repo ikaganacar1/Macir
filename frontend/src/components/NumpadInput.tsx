@@ -4,19 +4,23 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 interface NumpadInputProps {
   value: string;
   onChange: (value: string) => void;
+  integerOnly?: boolean;
 }
 
 /**
  * Mobile numpad for entering decimal quantities.
  * Avoids the native keyboard popup on mobile devices.
+ * Pass integerOnly for piece-unit products.
  */
-export function NumpadInput({ value, onChange }: NumpadInputProps) {
+export function NumpadInput({ value, onChange, integerOnly = false }: NumpadInputProps) {
   const handleKey = (key: string) => {
     if (key === '⌫') {
       onChange(value.slice(0, -1) || '0');
       return;
     }
-    if (key === '.' && value.includes('.')) return;
+    if (key === '.') {
+      if (integerOnly || value.includes('.')) return;
+    }
     if (value === '0' && key !== '.') {
       onChange(key);
       return;
@@ -54,6 +58,7 @@ export function NumpadInput({ value, onChange }: NumpadInputProps) {
             size='lg'
             onClick={() => handleKey(key)}
             style={{ fontSize: 18 }}
+            disabled={key === '.' && integerOnly}
           >
             {key}
           </Button>

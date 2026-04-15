@@ -257,7 +257,7 @@ export default function GroceryAddStock() {
           {isQtyField && modalProduct && (
             <Text size='xs' c='dimmed' ta='center'>{modalProduct.unit} cinsinden miktarı girin</Text>
           )}
-          <NumpadInput value={modalValue} onChange={setModalValue} />
+          <NumpadInput value={modalValue} onChange={setModalValue} integerOnly={isQtyField && modalProduct?.unit === 'piece'} />
           <Group grow>
             <Button variant='default' onClick={close}>İptal</Button>
             <Button color='green' onClick={confirmModal} data-testid="confirm-modal-btn">Tamam</Button>

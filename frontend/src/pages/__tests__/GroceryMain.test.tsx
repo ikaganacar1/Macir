@@ -62,14 +62,14 @@ const mockStatsWithLowStock = {
   low_stock: [{ product_id: 1 }, { product_id: 2 }],
 };
 
-function renderComponent(onLogout = vi.fn()) {
+function renderComponent() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter>
       <QueryClientProvider client={qc}>
         <MantineProvider>
           <Notifications />
-          <GroceryMain onLogout={onLogout} />
+          <GroceryMain />
         </MantineProvider>
       </QueryClientProvider>
     </MemoryRouter>
@@ -141,18 +141,6 @@ describe('GroceryMain', () => {
     });
     fireEvent.click(screen.getByTestId('btn-stock'));
     expect(mockNavigate).toHaveBeenCalledWith('/stock/new');
-  });
-
-  it('calls onLogout after logout button click', async () => {
-    const onLogout = vi.fn();
-    renderComponent(onLogout);
-    await waitFor(() => {
-      expect(screen.getByTestId('btn-logout')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId('btn-logout'));
-    await waitFor(() => {
-      expect(onLogout).toHaveBeenCalled();
-    });
   });
 
   it('renders Son Satışlar section header', async () => {

@@ -414,7 +414,7 @@ export default function GroceryRecordSales() {
             </SimpleGrid>
 
             <Text size='xs' fw={700} ta='center' mt='xs'>Özel Miktar</Text>
-            <NumpadInput value={modalQty} onChange={setModalQty} />
+            <NumpadInput value={modalQty} onChange={setModalQty} integerOnly={modalProduct.unit === 'piece'} />
 
             <Group grow mt='md'>
               <Button variant='default' onClick={close}>İptal</Button>
