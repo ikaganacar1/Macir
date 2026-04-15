@@ -126,18 +126,35 @@ const PRESET_PRODUCTS: Preset[] = [
 ];
 
 function MarketPriceIndicator({ productName, productPk, lat, lng }: { productName: string; productPk: number; lat: number; lng: number }) {
-  const { data } = useQuery<{ results: MarketPriceResult[] }>({
+  const [enabled, setEnabled] = useState(false);
+  const { data, isFetching } = useQuery<{ results: MarketPriceResult[] }>({
     queryKey: ['market-prices', productName, lat, lng],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: productName } }).then((r) => r.data),
     staleTime: 30 * 60 * 1000,
+    enabled,
   });
 
   const cheapest = data?.results?.[0]?.cheapest_stores?.[0];
-  if (!cheapest) return null;
+
+  if (!enabled) {
+    return (
+      <Text
+        size='xs'
+        c='green'
+        style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+        onClick={() => setEnabled(true)}
+        data-testid={`market-price-${productPk}`}
+      >
+        Piyasa fiyatı gör
+      </Text>
+    );
+  }
+
+  if (isFetching) return <Text size='xs' c='dimmed'>Yükleniyor...</Text>;
+  if (!cheapest) return <Text size='xs' c='dimmed'>Fiyat bulunamadı</Text>;
 
   const logo = getMarketLogo(cheapest.market);
-
   return (
     <Group gap={4} align='center' mt={2} data-testid={`market-price-${productPk}`}>
       {logo ? (

@@ -36,11 +36,8 @@ import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import { NumpadInput } from '../components/NumpadInput';
 import PageLayout from '../components/PageLayout';
+import { getIstanbulToday } from '../utils/format';
 import type { Debt, DebtPayment, FinanceEntry } from '../types';
-
-function getIstanbulToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
-}
 
 function getMonthParam(offset: number): string {
   const todayStr = getIstanbulToday();
@@ -86,7 +83,7 @@ export default function GroceryFinance() {
   const [paymentDate, setPaymentDate] = useState(getIstanbulToday());
   const [paymentNotes, setPaymentNotes] = useState('');
 
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'entry' | 'debt'; pk: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery<FinanceEntry[]>({
@@ -311,7 +308,7 @@ export default function GroceryFinance() {
                         size='sm'
                         data-testid={`btn-delete-entry-${entry.pk}`}
                         onClick={() => {
-                          setDeleteTarget({ type: 'entry', pk: entry.pk });
+                          setDeleteTarget(entry.pk);
                           openDeleteConfirm();
                         }}
                       >
@@ -610,7 +607,7 @@ export default function GroceryFinance() {
               color='red'
               data-testid='btn-confirm-delete'
               onClick={() => {
-                if (deleteTarget?.type === 'entry') deleteEntry(deleteTarget.pk);
+                if (deleteTarget !== null) deleteEntry(deleteTarget);
                 closeDeleteConfirm();
               }}
             >

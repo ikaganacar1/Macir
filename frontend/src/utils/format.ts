@@ -1,5 +1,6 @@
 export function formatCurrency(n: string | number): string {
-  return `₺${parseFloat(String(n)).toFixed(2)}`;
+  const val = parseFloat(String(n));
+  return `₺${(isNaN(val) ? 0 : val).toFixed(2)}`;
 }
 
 export function formatShortDate(s: string): string {
@@ -15,4 +16,10 @@ export function formatFullDate(s: string): string {
     month: 'long',
     year: 'numeric',
   });
+}
+
+export const ISTANBUL_TZ = 'Europe/Istanbul';
+
+export function getIstanbulToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: ISTANBUL_TZ }).format(new Date());
 }

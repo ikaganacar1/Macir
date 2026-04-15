@@ -20,14 +20,15 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconSearch } from '@tabler/icons-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NumpadInput } from '../components/NumpadInput';
 import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
-import type { Product } from '../types';
+import { getIstanbulToday } from '../utils/format';
+import type { Product, DashboardData } from '../types';
 
 interface SaleItem {
   product: number;
@@ -42,6 +43,7 @@ const QUANTITY_PRESETS = {
 
 export default function GroceryRecordSales() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -57,7 +59,7 @@ export default function GroceryRecordSales() {
     queryFn: () => api.get(endpoints.products).then((r) => r.data),
   });
 
-  const { data: dashboardData } = useQuery({
+  const { data: dashboardData } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard-week'],
     queryFn: () => api.get(endpoints.dashboard, { params: { range: 'week' } }).then((r) => r.data),
   });
@@ -69,7 +71,7 @@ export default function GroceryRecordSales() {
 
   // Sort: best sellers first, then alphabetical
   const sortedProducts = useMemo(() => {
-    const bestSellerIds: number[] = (dashboardData?.best_sellers ?? []).map((b: any) => b.product_id);
+    const bestSellerIds: number[] = (dashboardData?.best_sellers ?? []).map((b) => b.product_id);
     return [...products].sort((a, b) => {
       const rankA = bestSellerIds.indexOf(a.pk);
       const rankB = bestSellerIds.indexOf(b.pk);
@@ -121,16 +123,17 @@ export default function GroceryRecordSales() {
     close();
   };
 
-  const totalRevenue = Object.values(selectedItems).reduce(
-    (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.sell_price),
-    0
-  );
+  const totalRevenue = Object.values(selectedItems).reduce((sum, item) => {
+    const qtyCents = Math.round(parseFloat(item.quantity) * 1000);
+    const priceCents = Math.round(parseFloat(item.sell_price) * 100);
+    return sum + qtyCents * priceCents;
+  }, 0) / 100000;
 
   const selectedCount = Object.keys(selectedItems).length;
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+      const today = getIstanbulToday();
       return api.post(endpoints.saleRecords, {
         date: today,
         payment_method: paymentMethod,
@@ -139,6 +142,9 @@ export default function GroceryRecordSales() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grocery-products'] });
+      queryClient.invalidateQueries({ queryKey: ['grocery-dashboard-week'] });
+      queryClient.invalidateQueries({ queryKey: ['grocery-dashboard-today'] });
       notifications.show({ message: 'Satış kaydedildi!', color: 'green' });
       navigate('/');
     },
@@ -352,7 +358,7 @@ export default function GroceryRecordSales() {
                     : 'dimmed';
                 return (
                   <Text size='xs' c={stockColor} fw={500}>
-                    {product.stock_level} {product.unit}
+                    {parseFloat(String(product.stock_level))} {product.unit}
                   </Text>
                 );
               })()}
