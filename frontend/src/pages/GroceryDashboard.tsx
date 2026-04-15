@@ -20,7 +20,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { api, endpoints } from '../api';
 import EmptyState from '../components/EmptyState';
 import type { DashboardData } from '../types';
-import { formatCurrency, formatShortDate } from '../utils/format';
+import { formatCurrency, formatShortDate, getIstanbulToday } from '../utils/format';
 
 function fmt1(v: string | number | undefined): string {
   if (v == null) return '0.0';
@@ -30,7 +30,7 @@ function fmt1(v: string | number | undefined): string {
 export default function GroceryDashboard() {
   const navigate = useNavigate();
   const [range, setRange] = useState<'today' | 'week' | 'month'>('week');
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+  const today = getIstanbulToday();
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard', range, today],

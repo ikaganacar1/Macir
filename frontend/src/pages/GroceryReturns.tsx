@@ -24,6 +24,7 @@ import { NumpadInput } from '../components/NumpadInput';
 import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
+import { getIstanbulToday } from '../utils/format';
 
 interface ReturnItemDraft {
   product: number;
@@ -85,7 +86,7 @@ export default function GroceryReturns() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+      const today = getIstanbulToday();
       return api.post(endpoints.returnRecords, {
         date: today,
         notes: '',

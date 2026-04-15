@@ -20,20 +20,16 @@ import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { SaleRecord } from '../types';
 import { recordTotal } from '../utils/sales';
-import { formatFullDate } from '../utils/format';
+import { formatFullDate, getIstanbulToday } from '../utils/format';
 
 type DateRange = 'all' | 'today' | 'week' | 'month';
 
-function getLocalDate(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
-}
-
 function getToday(): string {
-  return getLocalDate();
+  return getIstanbulToday();
 }
 
 function getMonday(): string {
-  const todayStr = getLocalDate();
+  const todayStr = getIstanbulToday();
   const d = new Date(todayStr + 'T00:00:00');
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
@@ -45,7 +41,7 @@ function getMonday(): string {
 }
 
 function getFirstOfMonth(): string {
-  const todayStr = getLocalDate();
+  const todayStr = getIstanbulToday();
   return todayStr.substring(0, 8) + '01';
 }
 

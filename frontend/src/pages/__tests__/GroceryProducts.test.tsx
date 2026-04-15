@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -258,11 +259,13 @@ describe('GroceryProducts', () => {
     );
 
     await screen.findByText('Domates');
-    await waitFor(() => {
-      expect(screen.getByTestId('market-price-1')).toBeInTheDocument();
-    });
-    // Logo rendered as img inside the indicator — scope to the testid element
-    const indicator = screen.getByTestId('market-price-1');
+
+    // Click the "Piyasa fiyatı gör" trigger for product 1 (Domates) to enable the price fetch
+    const trigger = await screen.findByTestId('market-price-1');
+    await userEvent.click(trigger);
+
+    // Wait for the price to load and assert content
+    const indicator = await screen.findByTestId('market-price-1');
     expect(indicator.querySelector('img[alt="BIM"]')).toBeInTheDocument();
     expect(indicator).toHaveTextContent('18.50');
   });

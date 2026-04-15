@@ -21,6 +21,7 @@ import { NumpadInput } from '../components/NumpadInput';
 import PageLayout from '../components/PageLayout';
 import { api, endpoints } from '../api';
 import type { Product } from '../types';
+import { getIstanbulToday } from '../utils/format';
 
 type LineField = 'quantity' | 'purchase_price';
 
@@ -38,7 +39,7 @@ export default function GroceryAddStock() {
   const [modalValue, setModalValue] = useState('0');
   const [opened, { open, close }] = useDisclosure(false);
 
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+  const today = getIstanbulToday();
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['grocery-products'],

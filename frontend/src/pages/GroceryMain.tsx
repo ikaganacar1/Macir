@@ -29,11 +29,11 @@ import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../api';
 import type { DashboardData, SaleRecord } from '../types';
 import { recordTotal } from '../utils/sales';
-import { formatFullDate } from '../utils/format';
+import { formatFullDate, getIstanbulToday, ISTANBUL_TZ } from '../utils/format';
 
 export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+  const today = getIstanbulToday();
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardData>({
     queryKey: ['grocery-dashboard-today', today],
@@ -58,11 +58,12 @@ export default function GroceryMain({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const todayLabel = new Date().toLocaleDateString('tr-TR', {
+  const todayLabel = new Intl.DateTimeFormat('tr-TR', {
+    timeZone: ISTANBUL_TZ,
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  });
+  }).format(new Date());
 
   return (
     <Stack p='md' gap='md' style={{ minHeight: '100vh', background: '#f9faf7' }}>
