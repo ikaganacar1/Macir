@@ -40,6 +40,19 @@ class ProductCategoryOwnershipTest(APITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn('category', resp.json())
 
+    def test_cannot_reassign_to_other_users_category_on_update(self):
+        product = Product.objects.create(
+            name='Tomato', unit='kg', sell_price='10.00', owner=self.user_a
+        )
+        self.client.force_login(self.user_a)
+        resp = self.client.patch(
+            f'/api/grocery/products/{product.pk}/',
+            {'category': self.cat_b.pk},
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('category', resp.json())
+
 
 class CategoryModelTest(TestCase):
     """Tests for the Category model."""
