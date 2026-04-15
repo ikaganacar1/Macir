@@ -128,7 +128,7 @@ const PRESET_PRODUCTS: Preset[] = [
 function MarketPriceIndicator({ productName, productPk, lat, lng }: { productName: string; productPk: number; lat: number; lng: number }) {
   const [enabled, setEnabled] = useState(false);
   const { data, isFetching } = useQuery<{ results: MarketPriceResult[] }>({
-    queryKey: ['market-prices', productName, lat, lng],
+    queryKey: ['market-prices', productName, lat != null ? lat.toFixed(3) : null, lng != null ? lng.toFixed(3) : null],
     queryFn: () =>
       api.get(endpoints.marketPrices, { params: { q: productName } }).then((r) => r.data),
     staleTime: 30 * 60 * 1000,
@@ -297,7 +297,7 @@ export default function GroceryProducts() {
       header={
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)} aria-label='Geri dön'>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Ürünler</Title>

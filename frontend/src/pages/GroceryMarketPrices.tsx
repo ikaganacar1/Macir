@@ -200,6 +200,7 @@ export default function GroceryMarketPrices() {
                 px='xs'
                 onClick={() => navigate(-1)}
                 data-testid='btn-back'
+                aria-label='Geri dön'
               >
                 <IconArrowLeft size={20} />
               </Button>

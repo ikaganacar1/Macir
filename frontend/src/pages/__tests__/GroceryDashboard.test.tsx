@@ -149,7 +149,7 @@ describe('GroceryDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('Raporlar')).toBeInTheDocument();
     });
-    const backBtn = screen.getByRole('button', { name: '' });
+    const backBtn = screen.getByRole('button', { name: 'Geri dön' });
     fireEvent.click(backBtn);
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });

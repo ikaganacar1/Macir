@@ -109,7 +109,7 @@ export default function GroceryWasteEntry() {
       header={
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)} aria-label='Geri dön'>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Fire/Kayıp Kaydı</Title>

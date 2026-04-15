@@ -103,6 +103,7 @@ export default function GrocerySalesHistory() {
             px='xs'
             data-testid='btn-back'
             onClick={() => navigate(-1)}
+            aria-label='Geri dön'
           >
             <IconArrowLeft size={20} />
           </Button>

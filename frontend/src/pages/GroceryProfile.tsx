@@ -130,6 +130,7 @@ export default function GroceryProfile() {
                   }
                 }}
                 data-testid='btn-back'
+                aria-label='Geri dön'
               >
                 <IconArrowLeft size={20} />
               </Button>

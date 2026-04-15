@@ -9,6 +9,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import { api } from './api';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 
 const GroceryMain = lazy(() => import('./pages/GroceryMain'));
@@ -60,23 +61,25 @@ export default function App() {
         {!authed ? (
           <Login onLogin={() => setAuthed(true)} />
         ) : (
-          <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Yükleniyor...</div>}>
-            <Routes>
-              <Route path='/' element={<GroceryMain onLogout={() => setAuthed(false)} />} />
-              <Route path='/dashboard' element={<GroceryDashboard />} />
-              <Route path='/products' element={<GroceryProducts />} />
-              <Route path='/stock/new' element={<GroceryAddStock />} />
-              <Route path='/sales/new' element={<GroceryRecordSales />} />
-              <Route path='/sales/history' element={<GrocerySalesHistory />} />
-              <Route path='/market-prices' element={<GroceryMarketPrices />} />
-              <Route path='/profile' element={<GroceryProfile />} />
-              <Route path='/finance' element={<GroceryFinance />} />
-              <Route path='/waste/new' element={<GroceryWasteEntry />} />
-              <Route path='/returns/new' element={<GroceryReturns />} />
-              <Route path='/products/prices' element={<GroceryPriceEditor />} />
-              <Route path='*' element={<div style={{ padding: '2rem', textAlign: 'center' }}>Sayfa bulunamadı.</div>} />
-            </Routes>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Yükleniyor...</div>}>
+              <Routes>
+                <Route path='/' element={<GroceryMain onLogout={() => setAuthed(false)} />} />
+                <Route path='/dashboard' element={<GroceryDashboard />} />
+                <Route path='/products' element={<GroceryProducts />} />
+                <Route path='/stock/new' element={<GroceryAddStock />} />
+                <Route path='/sales/new' element={<GroceryRecordSales />} />
+                <Route path='/sales/history' element={<GrocerySalesHistory />} />
+                <Route path='/market-prices' element={<GroceryMarketPrices />} />
+                <Route path='/profile' element={<GroceryProfile />} />
+                <Route path='/finance' element={<GroceryFinance />} />
+                <Route path='/waste/new' element={<GroceryWasteEntry />} />
+                <Route path='/returns/new' element={<GroceryReturns />} />
+                <Route path='/products/prices' element={<GroceryPriceEditor />} />
+                <Route path='*' element={<div style={{ padding: '2rem', textAlign: 'center' }}>Sayfa bulunamadı.</div>} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         )}
       </MantineProvider>
     </QueryClientProvider>

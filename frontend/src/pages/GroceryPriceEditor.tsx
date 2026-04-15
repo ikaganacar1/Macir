@@ -4,6 +4,7 @@ import {
   Divider,
   Group,
   NumberInput,
+  Skeleton,
   Stack,
   Text,
   Title,
@@ -25,7 +26,7 @@ export default function GroceryPriceEditor() {
   const [changedPrices, setChangedPrices] = useState<Record<number, string>>({});
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ['grocery-products-all'],
+    queryKey: ['grocery-products-active'],
     queryFn: () => api.get(endpoints.products).then((r) => r.data),
   });
 
@@ -58,7 +59,7 @@ export default function GroceryPriceEditor() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grocery-products'] });
-      qc.invalidateQueries({ queryKey: ['grocery-products-all'] });
+      qc.invalidateQueries({ queryKey: ['grocery-products-active'] });
       setChangedPrices({});
       notifications.show({ message: 'Fiyatlar güncellendi!', color: 'green' });
     },
@@ -72,7 +73,7 @@ export default function GroceryPriceEditor() {
       header={
         <Group justify='space-between'>
           <Group gap='xs'>
-            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)}>
+            <Button variant='subtle' color='gray' px='xs' onClick={() => navigate(-1)} aria-label='Geri dön'>
               <IconArrowLeft size={20} />
             </Button>
             <Title order={4}>Fiyat Düzenle</Title>
@@ -101,7 +102,13 @@ export default function GroceryPriceEditor() {
         </Group>
       }
     >
-      {isLoading && <Text c='dimmed'>Yükleniyor...</Text>}
+      {isLoading && (
+        <Stack gap='md'>
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} height={56} radius='md' />
+          ))}
+        </Stack>
+      )}
       {sortedCategories.map((categoryName) => {
         const categoryProducts = grouped[categoryName];
         return (
