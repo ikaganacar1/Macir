@@ -1281,3 +1281,46 @@ class SaleRecordDateFilterTest(APITestCase):
     def test_valid_dates_return_200(self):
         resp = self.client.get('/api/grocery/sale-records/?date_from=2026-01-01&date_to=2026-12-31')
         self.assertEqual(resp.status_code, 200)
+
+
+class UserIsolationTest(APITestCase):
+    """User A must not be able to access or modify User B's data."""
+
+    def setUp(self):
+        self.user_a = User.objects.create_user(username='iso_a', password='pass')
+        self.user_b = User.objects.create_user(username='iso_b', password='pass')
+        self.cat_b = Category.objects.create(name='B-Cat', order=1, owner=self.user_b)
+        self.product_b = Product.objects.create(
+            name='B-Product', unit='kg', sell_price='5.00',
+            category=self.cat_b, owner=self.user_b,
+        )
+        self.debt_b = Debt.objects.create(
+            owner=self.user_b, name='B-Debt',
+            total_amount='500.00', monthly_payment='50.00', start_date='2026-01-01',
+        )
+
+    def test_user_a_cannot_read_user_b_product(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.get(f'/api/grocery/products/{self.product_b.pk}/')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_user_a_cannot_update_user_b_product(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.patch(
+            f'/api/grocery/products/{self.product_b.pk}/',
+            {'sell_price': '999.00'},
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_user_a_cannot_read_user_b_debt(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.get(f'/api/grocery/debts/{self.debt_b.pk}/')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_user_a_product_list_does_not_include_user_b_products(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.get('/api/grocery/products/')
+        self.assertEqual(resp.status_code, 200)
+        pks = [p['pk'] for p in resp.json()]
+        self.assertNotIn(self.product_b.pk, pks)
