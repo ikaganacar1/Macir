@@ -74,6 +74,12 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Desteklenmeyen dosya türü.')
         return value
 
+    def validate_category(self, value):
+        request = self.context.get('request')
+        if value is not None and request and value.owner != request.user:
+            raise serializers.ValidationError('Geçersiz kategori.')
+        return value
+
 
 class StockEntryItemSerializer(serializers.ModelSerializer):
     """Serializer for StockEntryItem."""

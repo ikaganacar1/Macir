@@ -21,6 +21,26 @@ from grocery.serializers import (
 )
 
 
+class ProductCategoryOwnershipTest(APITestCase):
+    """Ensure a product cannot be assigned to another user's category."""
+
+    def setUp(self):
+        self.user_a = User.objects.create_user(username='user_a', password='pass')
+        self.user_b = User.objects.create_user(username='user_b', password='pass')
+        self.cat_b = Category.objects.create(name='B-Fruits', order=1, owner=self.user_b)
+
+    def test_cannot_assign_other_users_category(self):
+        self.client.force_login(self.user_a)
+        resp = self.client.post('/api/grocery/products/', {
+            'name': 'Tomato',
+            'unit': 'kg',
+            'sell_price': '10.00',
+            'category': self.cat_b.pk,
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('category', resp.json())
+
+
 class CategoryModelTest(TestCase):
     """Tests for the Category model."""
 
