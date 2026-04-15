@@ -580,7 +580,7 @@ class DebtList(generics.ListCreateAPIView):
         serializer.save(owner=self.request.user)
 
 
-class DebtDetail(generics.UpdateAPIView):
+class DebtDetail(generics.RetrieveUpdateAPIView):
     serializer_class = DebtSerializer
     permission_classes = [IsAuthenticated]
 

@@ -1235,3 +1235,29 @@ class StoreProfileValidationTest(APITestCase):
     def test_valid_coordinates_accepted(self):
         resp = self.client.patch('/api/grocery/profile/', {'latitude': 41.0, 'longitude': 28.9}, content_type='application/json')
         self.assertEqual(resp.status_code, 200)
+
+
+class DebtDetailGetTest(APITestCase):
+    """GET /api/grocery/debts/<pk>/ should return the debt."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='debt_user', password='pass')
+        self.client.force_login(self.user)
+        self.debt = Debt.objects.create(
+            owner=self.user,
+            name='Test Borç',
+            total_amount='1000.00',
+            monthly_payment='100.00',
+            start_date='2026-01-01',
+        )
+
+    def test_get_debt_detail(self):
+        resp = self.client.get(f'/api/grocery/debts/{self.debt.pk}/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['name'], 'Test Borç')
+
+    def test_other_user_cannot_get_debt(self):
+        other = User.objects.create_user(username='other_debt', password='pass')
+        self.client.force_login(other)
+        resp = self.client.get(f'/api/grocery/debts/{self.debt.pk}/')
+        self.assertEqual(resp.status_code, 404)
