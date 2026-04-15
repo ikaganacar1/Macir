@@ -1213,3 +1213,25 @@ class PaymentMethodTest(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(float(r.data['cash_sales']), 36.0)
         self.assertEqual(float(r.data['card_sales']), 24.0)
+
+
+class StoreProfileValidationTest(APITestCase):
+    """Ensure lat/lon are validated."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='prof_user', password='pass')
+        self.client.force_login(self.user)
+
+    def test_invalid_latitude_rejected(self):
+        resp = self.client.patch('/api/grocery/profile/', {'latitude': 999.0}, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('latitude', resp.json())
+
+    def test_invalid_longitude_rejected(self):
+        resp = self.client.patch('/api/grocery/profile/', {'longitude': -999.0}, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('longitude', resp.json())
+
+    def test_valid_coordinates_accepted(self):
+        resp = self.client.patch('/api/grocery/profile/', {'latitude': 41.0, 'longitude': 28.9}, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)

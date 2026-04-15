@@ -309,6 +309,8 @@ class ReturnRecordSerializer(serializers.ModelSerializer):
 
 class StoreProfileSerializer(serializers.ModelSerializer):
     search_radius_km = serializers.IntegerField(min_value=1, max_value=10)
+    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
+    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
 
     class Meta:
         model = StoreProfile
