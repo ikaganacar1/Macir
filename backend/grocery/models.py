@@ -1,11 +1,16 @@
 # src/backend/InvenTree/grocery/models.py
 """Database models for the Grocery module."""
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
+
+# Smallest quantity with 3dp is 0.001; reject zero and negative line items.
+POSITIVE_QTY = Decimal('0.001')
 
 
 class Category(models.Model):
@@ -157,7 +162,7 @@ class StockEntryItem(models.Model):
     )
     quantity = models.DecimalField(
         max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(POSITIVE_QTY)],
     )
     purchase_price = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_('Purchase Price per Unit'),
@@ -219,7 +224,7 @@ class SaleItem(models.Model):
     )
     quantity = models.DecimalField(
         max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(POSITIVE_QTY)],
     )
     sell_price = models.DecimalField(
         max_digits=10,
@@ -285,7 +290,7 @@ class WasteItem(models.Model):
     )
     quantity = models.DecimalField(
         max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(POSITIVE_QTY)],
     )
     reason = models.CharField(
         max_length=20,
@@ -348,7 +353,7 @@ class ReturnItem(models.Model):
     )
     quantity = models.DecimalField(
         max_digits=10, decimal_places=3, verbose_name=_('Quantity'),
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(POSITIVE_QTY)],
     )
     refund_price = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_('Refund Price per Unit'),

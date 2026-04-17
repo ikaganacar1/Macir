@@ -315,7 +315,7 @@ class DashboardView(APIView):
         user = request.user
         range_param = request.query_params.get('range', 'today')
         date_param = request.query_params.get('date')
-        today = parse_date(date_param) if date_param else date.today()
+        today = parse_date(date_param) if date_param else datetime.now(ZoneInfo('Europe/Istanbul')).date()
 
         if range_param == 'today':
             start, end = today, today
@@ -529,15 +529,23 @@ class FinanceEntryList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        _create_missing_recurring(self.request.user)
-        qs = FinanceEntry.objects.filter(owner=self.request.user)
         month = self.request.query_params.get('month')  # 'YYYY-MM'
+        today = datetime.now(ZoneInfo('Europe/Istanbul')).date()
+        current_month = today.strftime('%Y-%m')
+        # Only backfill recurring templates when the caller is viewing the current month
+        # (or hasn't specified one) — backfilling for arbitrary past months is wrong.
+        if month is None or month == current_month:
+            _create_missing_recurring(self.request.user)
+        qs = FinanceEntry.objects.filter(owner=self.request.user)
         if month:
             try:
                 year, mon = month.split('-')
-                qs = qs.filter(date__year=int(year), date__month=int(mon))
+                year_i, mon_i = int(year), int(mon)
+                if not (1 <= mon_i <= 12):
+                    raise ValueError
             except (ValueError, AttributeError):
-                pass
+                raise DRFValidationError({'month': 'Geçersiz ay formatı. YYYY-MM kullanın.'})
+            qs = qs.filter(date__year=year_i, date__month=mon_i)
         return qs
 
     def perform_create(self, serializer):

@@ -25,6 +25,26 @@ from grocery.models import (
 )
 
 
+def _available_stock(product, request):
+    """Compute available stock for a product as received + returned - sold - wasted."""
+    owner_filter = {'entry__owner': request.user} if request else {}
+    received = StockEntryItem.objects.filter(
+        product=product, **owner_filter
+    ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+    sold = SaleItem.objects.filter(
+        product=product,
+        **({'sale__owner': request.user} if request else {}),
+    ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+    wasted = WasteItem.objects.filter(
+        product=product, **owner_filter
+    ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+    returned = ReturnItem.objects.filter(
+        product=product,
+        **({'record__owner': request.user} if request else {}),
+    ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+    return received + returned - sold - wasted
+
+
 class CategorySerializer(serializers.ModelSerializer):
     """Serializer for Category."""
 
@@ -69,7 +89,9 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.most_recent_purchase_price
 
     def validate_svg_icon(self, value):
-        allowed = {'image/svg+xml', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+        # Intentionally excludes image/svg+xml: SVG can contain <script> and execute
+        # under the same origin when served from /media/.
+        allowed = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
         if value and hasattr(value, 'content_type') and value.content_type not in allowed:
             raise serializers.ValidationError('Desteklenmeyen dosya türü.')
         return value
@@ -171,27 +193,15 @@ class SaleRecordSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items')
         with transaction.atomic():
             request = self.context.get('request')
+            # Lock products in deterministic order to prevent TOCTOU race with
+            # concurrent sale/waste creates oversubscribing stock.
+            product_ids = sorted({item['product'].pk for item in items_data})
+            list(Product.objects.select_for_update().filter(pk__in=product_ids))
             errors = []
             for item in items_data:
                 product = item['product']
                 qty = item['quantity']
-                received = StockEntryItem.objects.filter(
-                    product=product,
-                    **({'entry__owner': request.user} if request else {})
-                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-                sold = SaleItem.objects.filter(
-                    product=product,
-                    **({'sale__owner': request.user} if request else {})
-                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-                wasted = WasteItem.objects.filter(
-                    product=product,
-                    **({'entry__owner': request.user} if request else {})
-                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-                returned = ReturnItem.objects.filter(
-                    product=product,
-                    **({'record__owner': request.user} if request else {})
-                ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-                available = received + returned - sold - wasted
+                available = _available_stock(product, request)
                 if qty > available:
                     errors.append(
                         f'{product.name}: stok yetersiz ({available} mevcut, {qty} istendi)'
@@ -244,6 +254,20 @@ class WasteEntrySerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         with transaction.atomic():
+            request = self.context.get('request')
+            product_ids = sorted({item['product'].pk for item in items_data})
+            list(Product.objects.select_for_update().filter(pk__in=product_ids))
+            errors = []
+            for item in items_data:
+                product = item['product']
+                qty = item['quantity']
+                available = _available_stock(product, request)
+                if qty > available:
+                    errors.append(
+                        f'{product.name}: stok yetersiz ({available} mevcut, {qty} istendi)'
+                    )
+            if errors:
+                raise serializers.ValidationError({'items': errors})
             entry = WasteEntry.objects.create(**validated_data)
             for item in items_data:
                 WasteItem.objects.create(entry=entry, **item)
@@ -294,9 +318,39 @@ class ReturnRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Geçersiz satış kaydı.')
         return value
 
+    def validate(self, data):
+        """Reject returning more than has been sold (minus prior returns) for each product."""
+        request = self.context.get('request')
+        items = data.get('items', [])
+        requested = {}
+        for item in items:
+            pk = item['product'].pk
+            requested[pk] = requested.get(pk, Decimal('0')) + item['quantity']
+        errors = []
+        for product_pk, qty in requested.items():
+            sold = SaleItem.objects.filter(
+                product_id=product_pk,
+                **({'sale__owner': request.user} if request else {}),
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            already_returned = ReturnItem.objects.filter(
+                product_id=product_pk,
+                **({'record__owner': request.user} if request else {}),
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+            refundable = sold - already_returned
+            if qty > refundable:
+                name = Product.objects.filter(pk=product_pk).values_list('name', flat=True).first() or '?'
+                errors.append(
+                    f'{name}: iade miktarı satılan miktardan fazla ({refundable} iade edilebilir, {qty} istendi)'
+                )
+        if errors:
+            raise serializers.ValidationError({'items': errors})
+        return data
+
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         with transaction.atomic():
+            product_ids = sorted({item['product'].pk for item in items_data})
+            list(Product.objects.select_for_update().filter(pk__in=product_ids))
             record = ReturnRecord.objects.create(**validated_data)
             for item in items_data:
                 ReturnItem.objects.create(record=record, **item)

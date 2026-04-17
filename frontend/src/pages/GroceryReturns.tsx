@@ -79,10 +79,11 @@ export default function GroceryReturns() {
 
   const selectedCount = Object.keys(selectedItems).length;
 
-  const totalRefund = Object.values(selectedItems).reduce(
-    (sum, item) => sum + parseFloat(item.quantity) * parseFloat(item.refund_price),
-    0
-  );
+  const totalRefund = Object.values(selectedItems).reduce((sum, item) => {
+    const qtyCents = Math.round(parseFloat(item.quantity) * 1000);
+    const priceCents = Math.round(parseFloat(item.refund_price) * 100);
+    return sum + qtyCents * priceCents;
+  }, 0) / 100000;
 
   const saveMutation = useMutation({
     mutationFn: () => {

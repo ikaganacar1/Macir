@@ -1324,3 +1324,137 @@ class UserIsolationTest(APITestCase):
         self.assertEqual(resp.status_code, 200)
         pks = [p['pk'] for p in resp.json()]
         self.assertNotIn(self.product_b.pk, pks)
+
+
+class SvgIconRejectedTest(APITestCase):
+    """SVG uploads must be rejected (XSS risk when served under /media/)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='svg_user', password='pass')
+        self.client.force_login(self.user)
+
+    def test_svg_upload_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        svg_bytes = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        upload = SimpleUploadedFile('icon.svg', svg_bytes, content_type='image/svg+xml')
+        resp = self.client.post('/api/grocery/products/', {
+            'name': 'PwnTomato', 'unit': 'kg', 'sell_price': '1.00', 'svg_icon': upload,
+        }, format='multipart')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('svg_icon', resp.json())
+
+    def test_png_upload_accepted(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        png_bytes = b'\x89PNG\r\n\x1a\n' + b'\x00' * 16
+        upload = SimpleUploadedFile('icon.png', png_bytes, content_type='image/png')
+        resp = self.client.post('/api/grocery/products/', {
+            'name': 'PngTomato', 'unit': 'kg', 'sell_price': '1.00', 'svg_icon': upload,
+        }, format='multipart')
+        self.assertEqual(resp.status_code, 201)
+
+
+class WasteEntryStockGuardTest(APITestCase):
+    """Waste entries must not push stock below zero."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='waste_user', password='pass')
+        self.client.force_login(self.user)
+        self.product = Product.objects.create(
+            name='P', unit='kg', sell_price='10.00', owner=self.user,
+        )
+        # Only 2 kg received
+        se = StockEntry.objects.create(owner=self.user, date='2026-01-01')
+        StockEntryItem.objects.create(entry=se, product=self.product, quantity='2.000', purchase_price='5.00')
+
+    def test_overshoot_rejected(self):
+        resp = self.client.post('/api/grocery/waste-entries/', {
+            'date': '2026-01-02',
+            'items': [{'product': self.product.pk, 'quantity': '3.000', 'reason': 'spoiled'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('items', resp.json())
+
+    def test_within_stock_accepted(self):
+        resp = self.client.post('/api/grocery/waste-entries/', {
+            'date': '2026-01-02',
+            'items': [{'product': self.product.pk, 'quantity': '1.000', 'reason': 'spoiled'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 201)
+
+
+class ReturnRecordQuantityGuardTest(APITestCase):
+    """Cannot refund more than has been sold (minus prior returns)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='ret_user', password='pass')
+        self.client.force_login(self.user)
+        self.product = Product.objects.create(
+            name='P', unit='kg', sell_price='10.00', owner=self.user,
+        )
+        se = StockEntry.objects.create(owner=self.user, date='2026-01-01')
+        StockEntryItem.objects.create(entry=se, product=self.product, quantity='10.000', purchase_price='5.00')
+        sale = SaleRecord.objects.create(owner=self.user, date='2026-01-02')
+        SaleItem.objects.create(sale=sale, product=self.product, quantity='3.000', sell_price='10.00')
+
+    def test_over_return_rejected(self):
+        resp = self.client.post('/api/grocery/returns/', {
+            'date': '2026-01-03',
+            'items': [{'product': self.product.pk, 'quantity': '4.000', 'refund_price': '10.00'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('items', resp.json())
+
+    def test_return_within_sold_accepted(self):
+        resp = self.client.post('/api/grocery/returns/', {
+            'date': '2026-01-03',
+            'items': [{'product': self.product.pk, 'quantity': '2.000', 'refund_price': '10.00'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 201)
+
+
+class FinanceMonthParamTest(APITestCase):
+    """Invalid month param on finance list must return 400."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='fin_user', password='pass')
+        self.client.force_login(self.user)
+
+    def test_invalid_month_returns_400(self):
+        resp = self.client.get('/api/grocery/finance/?month=not-a-month')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_out_of_range_month_returns_400(self):
+        resp = self.client.get('/api/grocery/finance/?month=2026-13')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_valid_month_returns_200(self):
+        resp = self.client.get('/api/grocery/finance/?month=2026-04')
+        self.assertEqual(resp.status_code, 200)
+
+
+class ZeroQuantityRejectedTest(APITestCase):
+    """Zero-quantity line items must be rejected (otherwise they're no-ops)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='zq_user', password='pass')
+        self.client.force_login(self.user)
+        self.product = Product.objects.create(
+            name='P', unit='kg', sell_price='10.00', owner=self.user,
+        )
+
+    def test_zero_quantity_stock_rejected(self):
+        resp = self.client.post('/api/grocery/stock-entries/', {
+            'date': '2026-01-01',
+            'items': [{'product': self.product.pk, 'quantity': '0.000', 'purchase_price': '5.00'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_zero_quantity_sale_rejected(self):
+        StockEntry.objects.create(owner=self.user, date='2026-01-01').items.create(
+            product=self.product, quantity='5.000', purchase_price='5.00',
+        )
+        resp = self.client.post('/api/grocery/sale-records/', {
+            'date': '2026-01-02',
+            'items': [{'product': self.product.pk, 'quantity': '0.000', 'sell_price': '10.00'}],
+        }, content_type='application/json')
+        self.assertEqual(resp.status_code, 400)

@@ -107,8 +107,11 @@ export default function GroceryProfile({ onLogout }: { onLogout?: () => void } =
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLat(parseFloat(pos.coords.latitude.toFixed(6)));
-        setLng(parseFloat(pos.coords.longitude.toFixed(6)));
+        const parsedLat = parseFloat(pos.coords.latitude.toFixed(6));
+        const parsedLng = parseFloat(pos.coords.longitude.toFixed(6));
+        coordsRef.current = { lat: parsedLat, lng: parsedLng, radius: coordsRef.current.radius };
+        setLat(parsedLat);
+        setLng(parsedLng);
         setIsDirty(true);
       },
       () => {
