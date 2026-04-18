@@ -46,6 +46,9 @@ export interface DashboardData {
   monthly_expenses: string | number;
   monthly_income_extra: string | number;
   total_debt_remaining: string | number;
+  prev_sales: string | number;
+  transaction_count: number;
+  waste_cost: string | number;
 }
 
 export interface FinanceEntry {

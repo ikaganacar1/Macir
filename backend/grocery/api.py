@@ -407,7 +407,16 @@ class DashboardView(APIView):
                     'unit': p['unit'],
                 })
 
-        chart_start = today - timedelta(days=6)
+        if range_param == 'week':
+            chart_start = start
+            chart_dates = [start + timedelta(days=i) for i in range((today - start).days + 1)]
+        elif range_param == 'month':
+            chart_start = start
+            chart_dates = [start + timedelta(days=i) for i in range((today - start).days + 1)]
+        else:  # today — show last 7 days for trend context
+            chart_start = today - timedelta(days=6)
+            chart_dates = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
         chart_qs = (
             SaleItem.objects.filter(
                 sale__date__range=(chart_start, today),
@@ -422,11 +431,8 @@ class DashboardView(APIView):
         )
         daily_map = {row['sale__date']: row['daily_sales'] for row in chart_qs}
         chart = [
-            {
-                'date': str(today - timedelta(days=i)),
-                'sales': daily_map.get(today - timedelta(days=i), Decimal('0')),
-            }
-            for i in range(6, -1, -1)
+            {'date': str(d), 'sales': daily_map.get(d, Decimal('0'))}
+            for d in chart_dates
         ]
 
         month_start_istanbul = today.replace(day=1)
@@ -487,6 +493,53 @@ class DashboardView(APIView):
             )
         )['total']
 
+        # Previous period comparison
+        if range_param == 'today':
+            prev_start, prev_end = today - timedelta(days=1), today - timedelta(days=1)
+        elif range_param == 'week':
+            prev_start, prev_end = start - timedelta(days=7), end - timedelta(days=7)
+        else:  # month
+            prev_month_end = start - timedelta(days=1)
+            prev_start, prev_end = prev_month_end.replace(day=1), prev_month_end
+
+        prev_sales = SaleItem.objects.filter(
+            sale__date__range=(prev_start, prev_end),
+            sale__owner=user,
+        ).aggregate(
+            total=Coalesce(
+                Sum(ExpressionWrapper(F('quantity') * F('sell_price'), output_field=DecimalField())),
+                Decimal('0'),
+                output_field=DecimalField(),
+            )
+        )['total']
+
+        transaction_count = SaleRecord.objects.filter(
+            date__range=(start, end),
+            owner=user,
+        ).count()
+
+        waste_cost = WasteItem.objects.filter(
+            entry__date__range=(start, end),
+            entry__owner=user,
+        ).annotate(
+            latest_purchase=Coalesce(
+                Subquery(
+                    StockEntryItem.objects.filter(product_id=OuterRef('product_id'))
+                    .order_by('-entry__date', '-id')
+                    .values('purchase_price')[:1],
+                    output_field=DecimalField(),
+                ),
+                Decimal('0'),
+                output_field=DecimalField(),
+            )
+        ).aggregate(
+            total=Coalesce(
+                Sum(ExpressionWrapper(F('quantity') * F('latest_purchase'), output_field=DecimalField())),
+                Decimal('0'),
+                output_field=DecimalField(),
+            )
+        )['total']
+
         return Response({
             'range': range_param,
             'start': str(start),
@@ -502,6 +555,9 @@ class DashboardView(APIView):
             'total_debt_remaining': total_debt_remaining,
             'cash_sales': cash_sales,
             'card_sales': card_sales,
+            'prev_sales': prev_sales,
+            'transaction_count': transaction_count,
+            'waste_cost': waste_cost,
         })
 
 

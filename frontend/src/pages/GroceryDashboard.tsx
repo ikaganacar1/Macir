@@ -1,7 +1,7 @@
 import {
-  Badge,
   Box,
   Button,
+  Divider,
   Group,
   Paper,
   SegmentedControl,
@@ -11,11 +11,25 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconArrowLeft, IconChartBar, IconCircleCheck } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconChartBar,
+  IconCircleCheck,
+  IconTrendingDown,
+  IconTrendingUp,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { api, endpoints } from '../api';
 import EmptyState from '../components/EmptyState';
@@ -25,6 +39,51 @@ import { formatCurrency, formatShortDate, getIstanbulToday } from '../utils/form
 function fmt1(v: string | number | undefined): string {
   if (v == null) return '0.0';
   return parseFloat(String(v)).toFixed(1);
+}
+
+function ComparisonBadge({ current, prev }: { current: number; prev: number }) {
+  if (prev === 0) return null;
+  const pct = ((current - prev) / prev) * 100;
+  const up = pct >= 0;
+  return (
+    <Group gap={3} style={{ display: 'inline-flex', alignItems: 'center' }}>
+      {up ? (
+        <IconTrendingUp size={12} color='var(--mantine-color-green-6)' />
+      ) : (
+        <IconTrendingDown size={12} color='var(--mantine-color-red-6)' />
+      )}
+      <Text size='xs' c={up ? 'green' : 'red'} fw={600}>
+        {up ? '+' : ''}{pct.toFixed(1)}%
+      </Text>
+    </Group>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  extra,
+  'data-testid': testId,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  extra?: React.ReactNode;
+  'data-testid'?: string;
+}) {
+  return (
+    <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid={testId}>
+      <Text size='xs' c='dimmed' tt='uppercase' fw={600} mb={2}>{label}</Text>
+      <Text size='xl' fw={700} c='green'>{value}</Text>
+      {(sub || extra) && (
+        <Group gap='xs' mt={4}>
+          {extra}
+          {sub && <Text size='xs' c='dimmed'>{sub}</Text>}
+        </Group>
+      )}
+    </Paper>
+  );
 }
 
 export default function GroceryDashboard() {
@@ -43,9 +102,26 @@ export default function GroceryDashboard() {
     sales: parseFloat(String(d.sales)),
   }));
 
+  const totalSales = parseFloat(String(data?.total_sales ?? 0));
+  const netProfit = parseFloat(String(data?.net_profit ?? 0));
+  const prevSales = parseFloat(String(data?.prev_sales ?? 0));
+  const cashTotal = parseFloat(String(data?.cash_sales ?? 0));
+  const cardTotal = parseFloat(String(data?.card_sales ?? 0));
+  const cashCardTotal = cashTotal + cardTotal;
+  const cashPct = cashCardTotal > 0 ? (cashTotal / cashCardTotal) * 100 : 50;
+  const margin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+
+  const days = data
+    ? Math.max(1, Math.round((new Date(data.end).getTime() - new Date(data.start).getTime()) / 86400000) + 1)
+    : 1;
+  const avgDaily = totalSales / days;
+
+  const chartInterval = chartData.length > 14 ? Math.floor(chartData.length / 6) : 0;
+
+  const chartLabel = { today: 'Son 7 Günlük Satış', week: 'Bu Hafta Satışları', month: 'Bu Ay Satışları' }[range];
+
   return (
     <Stack gap={0} style={{ minHeight: '100vh', background: '#f9faf7' }}>
-      {/* Sticky header */}
       <Box
         p='md'
         style={{
@@ -80,48 +156,96 @@ export default function GroceryDashboard() {
       <Stack p='md' gap='md'>
         {/* Stat cards */}
         <SimpleGrid cols={2} spacing='sm'>
-          <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='stat-sales'>
-            <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Satış</Text>
-            <Text size='xl' fw={700} c='green'>{formatCurrency(data?.total_sales ?? 0)}</Text>
-          </Paper>
-          <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='stat-profit'>
-            <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Kâr</Text>
-            <Text size='xl' fw={700} c='green'>{formatCurrency(data?.net_profit ?? 0)}</Text>
-          </Paper>
+          <StatCard
+            label='Satış'
+            value={formatCurrency(totalSales)}
+            extra={<ComparisonBadge current={totalSales} prev={prevSales} />}
+            data-testid='stat-sales'
+          />
+          <StatCard
+            label='Kâr'
+            value={formatCurrency(netProfit)}
+            data-testid='stat-profit'
+          />
+          <StatCard
+            label='Kâr Marjı'
+            value={`%${margin.toFixed(1)}`}
+          />
+          <StatCard
+            label='Günlük Ort.'
+            value={formatCurrency(avgDaily)}
+          />
+          <StatCard
+            label='Ürün Adedi'
+            value={String(data?.items_sold ?? 0)}
+            sub={`${data?.transaction_count ?? 0} işlem`}
+            data-testid='stat-items'
+          />
+          <StatCard
+            label='Fire Maliyeti'
+            value={formatCurrency(data?.waste_cost ?? 0)}
+          />
         </SimpleGrid>
-        <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='stat-items'>
-          <Text size='xs' c='dimmed' tt='uppercase' fw={600}>Satılan Ürün Adedi</Text>
-          <Text size='xl' fw={700} c='green'>{data?.items_sold ?? 0}</Text>
-        </Paper>
 
-        {/* Cash/Card split */}
-        {(Number(data?.cash_sales ?? 0) > 0 || Number(data?.card_sales ?? 0) > 0) && (
-          <Group gap='xs' mt='xs' data-testid='cash-card-split'>
-            <Badge color='green' variant='light' size='sm'>
-              Nakit: ₺{parseFloat(String(data?.cash_sales ?? 0)).toFixed(2)}
-            </Badge>
-            <Badge color='blue' variant='light' size='sm'>
-              Kart: ₺{parseFloat(String(data?.card_sales ?? 0)).toFixed(2)}
-            </Badge>
-          </Group>
+        {/* Cash / Card split */}
+        {cashCardTotal > 0 && (
+          <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='cash-card-split'>
+            <Group justify='space-between' mb={6}>
+              <Text size='xs' c='dimmed' fw={600}>NAKİT</Text>
+              <Text size='xs' c='dimmed' fw={600}>KART</Text>
+            </Group>
+            <div
+              style={{
+                display: 'flex',
+                height: 10,
+                borderRadius: 6,
+                overflow: 'hidden',
+                background: 'var(--mantine-color-blue-3)',
+              }}
+            >
+              <div
+                style={{
+                  width: `${cashPct}%`,
+                  background: 'var(--mantine-color-green-5)',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+            <Group justify='space-between' mt={6}>
+              <Group gap={4}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--mantine-color-green-5)' }} />
+                <Text size='sm' fw={600} c='green'>{formatCurrency(cashTotal)}</Text>
+              </Group>
+              <Group gap={4}>
+                <Text size='sm' fw={600} c='blue'>{formatCurrency(cardTotal)}</Text>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--mantine-color-blue-3)' }} />
+              </Group>
+            </Group>
+          </Paper>
         )}
 
-        {/* Chart */}
+        {/* Line chart */}
         <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }} data-testid='chart-section'>
-          <Text fw={700} mb='md'>
-            {{ today: 'Bugünkü Satış', week: '7 Günlük Satış', month: 'Aylık Satış' }[range]}
-          </Text>
+          <Text fw={700} mb='md'>{chartLabel}</Text>
           {isLoading ? (
             <Skeleton height={200} radius='md' data-testid='chart-skeleton' />
           ) : (
-            <Box h={320}>
+            <Box h={280}>
               <ResponsiveContainer width='100%' height='100%'>
-                <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                  <XAxis dataKey='date' tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={45} tickFormatter={(v) => `₺${v}`} />
+                <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray='3 3' stroke='#f0f4f0' />
+                  <XAxis dataKey='date' tick={{ fontSize: 11 }} interval={chartInterval} />
+                  <YAxis tick={{ fontSize: 11 }} width={50} tickFormatter={(v) => `₺${v}`} />
                   <Tooltip formatter={(v) => [`₺${Number(v).toFixed(2)}`, 'Satış']} />
-                  <Bar dataKey='sales' fill='var(--mantine-color-green-5)' radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type='monotone'
+                    dataKey='sales'
+                    stroke='var(--mantine-color-green-6)'
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: 'var(--mantine-color-green-6)', strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </Box>
           )}
@@ -145,6 +269,31 @@ export default function GroceryDashboard() {
             ))}
             {!data?.best_sellers?.length && (
               <EmptyState icon={IconChartBar} title='Bu dönemde satış yok' />
+            )}
+          </Stack>
+        </Paper>
+
+        {/* Monthly finance summary */}
+        <Paper withBorder p='md' style={{ border: '1px solid #e8f5e9' }}>
+          <Text fw={700} mb='sm'>Bu Ay Finans</Text>
+          <Stack gap='xs'>
+            <Group justify='space-between'>
+              <Text size='sm' c='dimmed'>Giderler</Text>
+              <Text size='sm' fw={600} c='red'>{formatCurrency(data?.monthly_expenses ?? 0)}</Text>
+            </Group>
+            <Divider />
+            <Group justify='space-between'>
+              <Text size='sm' c='dimmed'>Ekstra Gelir</Text>
+              <Text size='sm' fw={600} c='green'>{formatCurrency(data?.monthly_income_extra ?? 0)}</Text>
+            </Group>
+            {parseFloat(String(data?.total_debt_remaining ?? 0)) > 0 && (
+              <>
+                <Divider />
+                <Group justify='space-between'>
+                  <Text size='sm' c='dimmed'>Borç Bakiyesi</Text>
+                  <Text size='sm' fw={600} c='orange'>{formatCurrency(data?.total_debt_remaining ?? 0)}</Text>
+                </Group>
+              </>
             )}
           </Stack>
         </Paper>

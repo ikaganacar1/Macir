@@ -6,8 +6,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid='bar-chart'>{children}</div>,
-  Bar: () => null,
+  LineChart: ({ children }: { children: React.ReactNode }) => <div data-testid='line-chart'>{children}</div>,
+  Line: () => null,
+  CartesianGrid: () => null,
   XAxis: () => null,
   YAxis: () => null,
   Tooltip: () => null,
@@ -132,7 +133,7 @@ describe('GroceryDashboard', () => {
   it('shows dynamic chart label based on range — week default', async () => {
     renderComponent();
     await waitFor(() => {
-      expect(screen.getByText('7 Günlük Satış')).toBeInTheDocument();
+      expect(screen.getByText('Bu Hafta Satışları')).toBeInTheDocument();
     });
   });
 
