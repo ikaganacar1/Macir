@@ -175,6 +175,7 @@ export default function GroceryProducts() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [iconFile, setIconFile] = useState<File | null>(null);
+  const [clearIcon, setClearIcon] = useState(false);
 
   const { data: profile } = useQuery<StoreProfile>({
     queryKey: ['store-profile'],
@@ -219,6 +220,7 @@ export default function GroceryProducts() {
   const openEdit = (product: Product) => {
     setEditing(product);
     setIconFile(null);
+    setClearIcon(false);
     form.setValues({
       name: product.name,
       category: product.category,
@@ -233,29 +235,45 @@ export default function GroceryProducts() {
   const openNew = () => {
     setEditing(null);
     setIconFile(null);
+    setClearIcon(false);
     form.reset();
     open();
   };
 
   const saveMutation = useMutation({
     mutationFn: (values: typeof form.values) => {
-      const formData = new FormData();
-      formData.append('name', values.name);
-      if (values.category != null) formData.append('category', String(values.category));
-      formData.append('unit', values.unit);
-      formData.append('sell_price', parseFloat(String(values.sell_price) || '0').toFixed(2));
-      formData.append('low_stock_threshold', parseFloat(String(values.low_stock_threshold) || '0').toFixed(2));
-      formData.append('expiry_note', values.expiry_note);
-      if (iconFile) formData.append('svg_icon', iconFile);
+      const baseFields = {
+        name: values.name,
+        category: values.category,
+        unit: values.unit,
+        sell_price: parseFloat(String(values.sell_price) || '0').toFixed(2),
+        low_stock_threshold: parseFloat(String(values.low_stock_threshold) || '0').toFixed(2),
+        expiry_note: values.expiry_note,
+      };
 
       if (editing) {
-        return api.patch(`${endpoints.products}${editing.pk}/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        if (iconFile) {
+          // PATCH with new file: multipart
+          const fd = new FormData();
+          Object.entries(baseFields).forEach(([k, v]) => {
+            if (v != null) fd.append(k, String(v));
+          });
+          fd.append('svg_icon', iconFile);
+          return api.patch(`${endpoints.products}${editing.pk}/`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        }
+        // PATCH without file: JSON (clears icon if clearIcon)
+        return api.patch(`${endpoints.products}${editing.pk}/`, clearIcon ? { ...baseFields, svg_icon: null } : baseFields);
       }
-      return api.post(endpoints.products, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+
+      // POST new product: multipart (icon optional)
+      const fd = new FormData();
+      Object.entries(baseFields).forEach(([k, v]) => {
+        if (v != null) fd.append(k, String(v));
       });
+      if (iconFile) fd.append('svg_icon', iconFile);
+      return api.post(endpoints.products, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grocery-products-all'] });
@@ -329,15 +347,24 @@ export default function GroceryProducts() {
       {filteredProducts.map((product) => (
         <Paper key={product.pk} withBorder p='sm' style={{ border: '1px solid #e8f5e9' }}>
           <Group justify='space-between'>
-            <div>
-              <Text fw={600} c={product.is_active ? undefined : 'dimmed'}>
-                {product.name} {!product.is_active && '(pasif)'}
-              </Text>
-              <Text size='xs' c='dimmed'>
-                {product.category_name} · ₺{product.sell_price}/{product.unit}
-              </Text>
-              <MarketPriceIndicator productName={product.name} productPk={product.pk} lat={profileLat} lng={profileLng} />
-            </div>
+            <Group gap='sm' align='flex-start'>
+              {product.svg_icon && (
+                <img
+                  src={product.svg_icon}
+                  alt={product.name}
+                  style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0, marginTop: 2 }}
+                />
+              )}
+              <div>
+                <Text fw={600} c={product.is_active ? undefined : 'dimmed'}>
+                  {product.name} {!product.is_active && '(pasif)'}
+                </Text>
+                <Text size='xs' c='dimmed'>
+                  {product.category_name} · ₺{product.sell_price}/{product.unit}
+                </Text>
+                <MarketPriceIndicator productName={product.name} productPk={product.pk} lat={profileLat} lng={profileLng} />
+              </div>
+            </Group>
             <Button
               variant='subtle'
               color='green'
@@ -424,13 +451,34 @@ export default function GroceryProducts() {
               {...form.getInputProps('low_stock_threshold')}
             />
             <TextInput label='Son Kullanma Notu' {...form.getInputProps('expiry_note')} />
+            {editing?.svg_icon && !clearIcon && !iconFile && (
+              <Group gap='xs' align='center'>
+                <img
+                  src={editing.svg_icon}
+                  alt='Mevcut ikon'
+                  style={{ width: 36, height: 36, objectFit: 'contain', border: '1px solid #e8f5e9', borderRadius: 6, padding: 2 }}
+                />
+                <Stack gap={0}>
+                  <Text size='xs' c='dimmed'>Mevcut ikon</Text>
+                  <Text size='xs' c='red' style={{ cursor: 'pointer' }} onClick={() => setClearIcon(true)}>
+                    Kaldır
+                  </Text>
+                </Stack>
+              </Group>
+            )}
+            {clearIcon && (
+              <Group gap='xs'>
+                <Text size='xs' c='dimmed'>İkon kaydedildiğinde kaldırılacak.</Text>
+                <Text size='xs' c='blue' style={{ cursor: 'pointer' }} onClick={() => setClearIcon(false)}>Geri al</Text>
+              </Group>
+            )}
             <FileInput
-              label='İkon (SVG veya resim)'
-              placeholder='Dosya seç...'
+              label='İkon (PNG, JPEG, WebP)'
+              placeholder={editing?.svg_icon && !clearIcon ? 'Değiştirmek için seç...' : 'Dosya seç...'}
               leftSection={<IconUpload size={14} />}
               value={iconFile}
-              onChange={setIconFile}
-              accept='image/svg+xml,image/*'
+              onChange={(f) => { setIconFile(f); if (f) setClearIcon(false); }}
+              accept='image/png,image/jpeg,image/webp,image/gif'
               clearable
             />
             <Group grow>
