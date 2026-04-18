@@ -23,7 +23,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/yonetim-paneli-x7k2m9/],
+        navigateFallbackDenylist: [/^\/admin\//],
         runtimeCaching: [
           {
             urlPattern: /^\/api\/grocery\/.*/i,
